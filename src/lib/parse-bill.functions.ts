@@ -1,6 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import type { AssessmentReport } from "./assessment-types";
+import { normalizeReport } from "./normalize-assessment";
+
 
 const ParseInput = z.object({
   billText: z.string().min(20).max(60_000),
@@ -23,11 +25,13 @@ Rules:
 - Never claim certainty about exposed resources, open security groups, IAM abuse, or exact instance families unless the source text supports it.
 - Findings must be evidence-first: cite USD amounts and percentages from the bill where possible.
 - Every finding has 3–5 numbered reasoning points and a concrete next action.
-- Use realistic savings math (Compute Savings Plan ~30%, RI ~40%, Graviton ~20%).
-- Categories: cost, security, modernization, governance.
-- Severity: info, medium, high, critical.
-- Confidence: low, medium, high. EvidenceType: direct, inference, assumption.
-- Scoring weights: cost 40%, security 25%, governance 20%, modernization 15%.
+- Savings math: be conservative. Apply at most these uplift factors against the relevant service line item: Compute Savings Plan ~25-30%, Reserved Instances ~35-40%, Graviton migration ~15-20%, S3 storage class transition ~30-50% of the storage line, idle/right-size ~30-50% of the over-provisioned line. NEVER claim savings larger than the underlying service spend.
+- monthlySavings must be a realistic dollar number (not a percent). Set 0 or omit when the finding is not directly cost-saving (security, governance).
+- billingPeriods must include the periods present in the bill text with real amounts. Use trailing 3 months when available.
+- summaryMetrics: averageSpend = mean of billingPeriods.amount. monthlySavings = sum of finding monthlySavings. annualSavings = monthlySavings * 12. savingsPercent = monthlySavings / averageSpend * 100. criticalCount = number of findings with severity 'critical'.
+- Scoring: costEfficiency and securityGrade are 0–100 integers. Lower the score when more high/critical findings exist in that category.
+- Categories: cost, security, modernization, governance. Severity: info, medium, high, critical. Confidence: low, medium, high. EvidenceType: direct, inference, assumption.
+- Provide 6–10 findings spread across the four categories. Include at least 1 security and 1 governance finding even if low severity.
 - Output STRICT JSON matching the provided schema. No prose, no markdown fences.`;
 
     const userPrompt = `Account name: ${data.accountName || "Cloud Environment"}
@@ -190,7 +194,7 @@ Generate the assessment JSON now. Include 6–10 findings across the four catego
     const parsed = typeof args === "string" ? JSON.parse(args) : args;
 
     // Best-effort: stamp ids and a timestamp
-    const report: AssessmentReport = {
+    const raw: AssessmentReport = {
       ...parsed,
       generatedAt: new Date().toISOString(),
       findings: (parsed.findings || []).map((f: { id?: string }, i: number) => ({
@@ -199,5 +203,6 @@ Generate the assessment JSON now. Include 6–10 findings across the four catego
       })),
     };
 
-    return report;
+    // Enforce internally-consistent math and scoring regardless of LLM output.
+    return normalizeReport(raw);
   });

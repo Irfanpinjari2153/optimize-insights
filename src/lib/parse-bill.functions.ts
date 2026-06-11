@@ -175,7 +175,6 @@ Produce the full deep-dive assessment now. Remember: 10–14 findings, 5–7 rea
       },
       body: JSON.stringify({
         model: "openai/gpt-5.5",
-        reasoning_effort: "high",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },

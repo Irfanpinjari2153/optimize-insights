@@ -248,7 +248,7 @@ function AssessmentPage() {
           <div className="absolute inset-0 bg-grid-faint opacity-50" />
           <div className="absolute right-0 top-0 hidden h-full w-1/2 bg-gradient-to-l from-primary-soft/60 to-transparent lg:block" />
 
-          <div className="relative grid gap-8 p-8 lg:grid-cols-[1.4fr_1fr] lg:p-10">
+          <div className="relative grid gap-8 p-6 sm:p-8 lg:grid-cols-[1.4fr_1fr] lg:p-10">
             <div>
               <div className="flex items-center gap-2">
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-success/20 bg-success-soft px-2.5 py-1 text-xs font-medium text-success">

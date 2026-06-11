@@ -260,7 +260,7 @@ function AssessmentPage() {
                 </span>
               </div>
 
-              <h1 className="mt-4 font-display text-4xl leading-[1.05] tracking-tight text-foreground lg:text-5xl">
+              <h1 className="mt-4 font-display text-3xl leading-[1.05] tracking-tight text-foreground sm:text-4xl lg:text-5xl">
                 Executive cloud assessment
               </h1>
               <p className="mt-3 max-w-xl text-sm leading-relaxed text-muted-foreground">

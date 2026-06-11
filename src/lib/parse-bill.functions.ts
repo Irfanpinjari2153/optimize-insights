@@ -5,7 +5,7 @@ import { normalizeReport } from "./normalize-assessment";
 
 
 const ParseInput = z.object({
-  billText: z.string().min(20).max(60_000),
+  billText: z.string().min(20).max(300_000),
   accountName: z.string().optional(),
 });
 

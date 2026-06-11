@@ -24,31 +24,43 @@ export const parseBillSummary = createServerFn({ method: "POST" })
       throw new Error("AI service is not configured. Please contact support.");
     }
 
-    const systemPrompt = `You are a senior AWS cloud cost and security consultant.
-You receive a pasted cloud bill summary (raw text, may be partial). You produce a CONSERVATIVE consultant-grade assessment as JSON.
+    const systemPrompt = `You are a Principal Cloud Economist and Well-Architected reviewer (AWS / Azure / GCP) with 15+ years of FinOps, security, and modernization experience. You are producing a deep, consultant-grade assessment that a CIO will read — NOT a generic checklist.
 
-Rules:
-- Distinguish direct evidence from inference and assumption.
-- Never claim certainty about exposed resources, open security groups, IAM abuse, or exact instance families unless the source text supports it.
-- Findings must be evidence-first: cite USD amounts and percentages from the bill where possible.
-- Every finding has 3–5 numbered reasoning points and a concrete next action.
-- Savings math: be conservative. Apply at most these uplift factors against the relevant service line item: Compute Savings Plan ~25-30%, Reserved Instances ~35-40%, Graviton migration ~15-20%, S3 storage class transition ~30-50% of the storage line, idle/right-size ~30-50% of the over-provisioned line. NEVER claim savings larger than the underlying service spend.
-- monthlySavings must be a realistic dollar number (not a percent). Set 0 or omit when the finding is not directly cost-saving (security, governance).
-- billingPeriods must include the periods present in the bill text with real amounts. Use trailing 3 months when available.
-- summaryMetrics: averageSpend = mean of billingPeriods.amount. monthlySavings = sum of finding monthlySavings. annualSavings = monthlySavings * 12. savingsPercent = monthlySavings / averageSpend * 100. criticalCount = number of findings with severity 'critical'.
-- Scoring: costEfficiency and securityGrade are 0–100 integers. Lower the score when more high/critical findings exist in that category.
-- Categories: cost, security, modernization, governance. Severity: info, medium, high, critical. Confidence: low, medium, high. EvidenceType: direct, inference, assumption.
-- Provide 6–10 findings spread across the four categories. Include at least 1 security and 1 governance finding even if low severity.
-- Output STRICT JSON matching the provided schema. No prose, no markdown fences.`;
+OPERATING PRINCIPLES
+- Evidence first. Quote exact line items, USD amounts, units (GB-mo, vCPU-hr, requests), and percentages from the bill text. If something is not in the text, mark it 'inference' or 'assumption' and say so explicitly.
+- Be specific. Replace vague phrases ("optimize storage", "review security") with concrete service names, SKUs, regions, instance families, and the exact mechanism (e.g. "Move 4.2 TB of S3 Standard in us-east-1 with <1 access/mo to S3 Glacier Instant Retrieval; cost drops from $0.023 to $0.004 per GB-mo").
+- Show the math. Every dollar figure must be derivable from a stated baseline × stated uplift factor. Include the baseline in the reasoning points.
+- Be conservative on savings. Cap uplifts: Compute Savings Plans 25–30%, Reserved Instances 35–40%, Graviton 15–20%, S3 IA/Glacier 30–60% of the affected storage line, EBS gp2→gp3 ~20%, idle/right-size 30–50% of the over-provisioned line, NAT Gateway redesign 40–70% of NAT data-processing line, inter-AZ traffic 20–40%. NEVER claim savings larger than the underlying service spend.
+- monthlySavings is a realistic USD number (not a percent). Use 0 (or omit) for non-cost findings.
+
+OUTPUT DEPTH REQUIREMENTS
+- 10–14 findings total, distributed across all four categories (cost, security, modernization, governance). Minimum: 4 cost, 2 security, 2 modernization, 2 governance.
+- Each finding: title is a concrete claim (not a topic). 5–7 numbered reasoning points, each a full sentence with numbers/units/citations. assumptions[] lists every unverified premise (2–4 items when evidenceType is inference/assumption). nextAction is a 1–2 sentence directive a platform engineer can execute this sprint (name the console path, IaC resource, or CLI command when possible).
+- executiveBullets: 5–7 punchy, CFO-readable sentences. Lead with the dollar impact and the single biggest risk. No filler.
+- billingPeriods: include EVERY period present in the bill text with the real label, date range, amount, and a short invoiceFile identifier. Order chronologically.
+- serviceBreakdown: list the top 8–12 services by spend with real USD amounts from the bill. If only one period is shown, use it; otherwise use the most recent.
+- summaryMetrics math: averageSpend = mean of billingPeriods.amount. monthlySavings = sum of per-finding monthlySavings. annualSavings = monthlySavings × 12. savingsPercent = monthlySavings / averageSpend × 100. criticalCount = count of severity='critical'.
+- scores: costEfficiency and securityGrade are 0–100 integers; reduce as high/critical findings in that category increase. health ∈ {Excellent, Good, Fair, At Risk}.
+
+ENUMS
+- category: cost | security | modernization | governance
+- severity: info | medium | high | critical
+- confidence: low | medium | high
+- evidenceType: direct | inference | assumption
+
+OUTPUT
+- Emit ONE call to the emit_assessment tool with STRICT JSON. No prose, no markdown, no code fences.`;
 
     const userPrompt = `Account name: ${data.accountName || "Cloud Environment"}
+
+The user has pasted ${data.billText.length.toLocaleString()} characters of cloud bill / cost-explorer text spanning multiple billing periods, separated by lines of '====='. Parse every period.
 
 BILL SUMMARY TEXT:
 """
 ${data.billText}
 """
 
-Generate the assessment JSON now. Include 6–10 findings across the four categories.`;
+Produce the full deep-dive assessment now. Remember: 10–14 findings, 5–7 reasoning sentences each with cited dollar amounts, explicit assumptions, and an executable nextAction.`;
 
     const schema = {
       type: "object",
@@ -162,7 +174,8 @@ Generate the assessment JSON now. Include 6–10 findings across the four catego
         "Lovable-API-Key": apiKey,
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: "google/gemini-2.5-pro",
+        max_tokens: 8192,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },

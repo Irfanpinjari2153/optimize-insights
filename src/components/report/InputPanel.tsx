@@ -4,10 +4,17 @@ import { useServerFn } from "@tanstack/react-start";
 import { Button } from "@/components/ui/button";
 import { parseBillSummary } from "@/lib/parse-bill.functions";
 import type { AssessmentReport } from "@/lib/assessment-types";
+import {
+  MAX_BILLS,
+  MAX_BILL_CHARS,
+  MAX_COMBINED_BILL_CHARS,
+  MIN_BILLS,
+  MIN_SUMMARY_CHARS,
+  clampBillText,
+  combineBillSummaries,
+  normalizeBillText,
+} from "@/lib/bill-input";
 import { toast } from "sonner";
-
-const MIN_BILLS = 3;
-const MAX_BILLS = 6;
 
 type Bill = { id: string; label: string; text: string };
 
@@ -27,7 +34,9 @@ export function InputPanel({
   const [loading, setLoading] = useState(false);
   const parse = useServerFn(parseBillSummary);
 
-  const filledCount = bills.filter((b) => b.text.trim().length >= 20).length;
+  const readyBills = bills.filter((b) => b.text.trim().length >= MIN_SUMMARY_CHARS);
+  const filledCount = readyBills.length;
+  const combined = combineBillSummaries(readyBills);
 
   function updateBill(id: string, patch: Partial<Bill>) {
     setBills((prev) => prev.map((b) => (b.id === id ? { ...b, ...patch } : b)));
@@ -51,14 +60,25 @@ export function InputPanel({
 
   async function handleFile(id: string, file: File) {
     const content = await file.text();
-    updateBill(id, { text: content, label: file.name.replace(/\.[^.]+$/, "") });
+    const normalized = normalizeBillText(content);
+    const text = clampBillText(normalized);
+
+    updateBill(id, { text, label: file.name.replace(/\.[^.]+$/, "") });
+
+    if (normalized.length > MAX_BILL_CHARS) {
+      toast.warning(
+        `${file.name} was trimmed to ${MAX_BILL_CHARS.toLocaleString()} characters. Upload a summarized bill period rather than a full raw export.`,
+      );
+      return;
+    }
+
     toast.success(`Loaded ${file.name}`);
   }
 
   async function analyze() {
     if (filledCount < MIN_BILLS) {
       toast.error(
-        `Please provide at least ${MIN_BILLS} bill summaries (each with 20+ characters). You have ${filledCount}.`,
+        `Please provide at least ${MIN_BILLS} bill summaries (each with ${MIN_SUMMARY_CHARS}+ characters). You have ${filledCount}.`,
       );
       return;
     }
@@ -67,13 +87,12 @@ export function InputPanel({
       return;
     }
 
-    const combined = bills
-      .filter((b) => b.text.trim().length >= 20)
-      .map(
-        (b, i) =>
-          `===== ${b.label || `Billing period ${i + 1}`} =====\n${b.text.trim()}`,
-      )
-      .join("\n\n");
+    if (combined.length > MAX_COMBINED_BILL_CHARS) {
+      toast.error(
+        `The combined input is too large (${combined.length.toLocaleString()} characters). Keep it under ${MAX_COMBINED_BILL_CHARS.toLocaleString()} by pasting summarized billing periods.`,
+      );
+      return;
+    }
 
     setLoading(true);
     try {
@@ -188,11 +207,18 @@ export function InputPanel({
               </div>
               <textarea
                 value={b.text}
-                onChange={(e) => updateBill(b.id, { text: e.target.value })}
+                onChange={(e) => updateBill(b.id, { text: normalizeBillText(e.target.value) })}
                 placeholder={`Paste bill summary for period ${i + 1}…\n\nExample:\nSep 2025 — total $384.68\n  Elastic Compute Cloud ........ $215.40\n  Simple Storage Service ....... $38.92`}
                 rows={5}
+                maxLength={MAX_BILL_CHARS}
                 className="mt-2 w-full resize-y rounded-md border border-border bg-background px-3 py-2 font-mono text-[12px] leading-relaxed text-foreground outline-none ring-ring/40 placeholder:text-muted-foreground focus:ring-2"
               />
+              <div className="mt-1 flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
+                <span>Use a concise bill summary for this period.</span>
+                <span>
+                  {b.text.length.toLocaleString()} / {MAX_BILL_CHARS.toLocaleString()} chars
+                </span>
+              </div>
             </div>
           );
         })}
@@ -200,7 +226,7 @@ export function InputPanel({
 
       <div className="mt-3 flex items-center justify-between">
         <p className="text-xs text-muted-foreground">
-          {bills.length} of {MAX_BILLS} periods · minimum {MIN_BILLS} required
+          {bills.length} of {MAX_BILLS} periods · {combined.length.toLocaleString()} / {MAX_COMBINED_BILL_CHARS.toLocaleString()} combined chars
         </p>
         <Button
           type="button"

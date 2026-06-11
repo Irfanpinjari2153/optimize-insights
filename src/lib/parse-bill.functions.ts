@@ -1,11 +1,18 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import type { AssessmentReport } from "./assessment-types";
+import { MIN_SUMMARY_CHARS, SERVER_BILL_TEXT_LIMIT } from "./bill-input";
 import { normalizeReport } from "./normalize-assessment";
 
 
 const ParseInput = z.object({
-  billText: z.string().min(20).max(300_000),
+  billText: z
+    .string()
+    .min(MIN_SUMMARY_CHARS)
+    .max(
+      SERVER_BILL_TEXT_LIMIT,
+      `Bill summaries are too large. Keep the combined input under ${SERVER_BILL_TEXT_LIMIT.toLocaleString()} characters.`,
+    ),
   accountName: z.string().optional(),
 });
 

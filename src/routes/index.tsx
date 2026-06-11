@@ -1,16 +1,22 @@
-import { useMemo, useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { useEffect, useMemo, useState } from "react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
+import { z } from "zod";
 import {
   ArrowLeft,
   CloudCog,
   FileDown,
   FileText,
   Filter,
+  History,
+  LogIn,
+  Save,
   Sparkles,
   TrendingUp,
   ShieldCheck,
   CircleAlert,
   CheckCircle2,
+  Loader2,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -25,8 +31,16 @@ import { SeverityBadge, CategoryChip } from "@/components/report/SeverityBadge";
 import { mockReport } from "@/lib/mock-assessment";
 import type { AssessmentReport, Category } from "@/lib/assessment-types";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/use-auth";
+import { saveAssessment, getAssessment } from "@/lib/assessments.functions";
+import { toast } from "sonner";
+
+const SearchSchema = z.object({
+  assessment: z.string().uuid().optional(),
+});
 
 export const Route = createFileRoute("/")({
+  validateSearch: (s) => SearchSchema.parse(s),
   head: () => ({
     meta: [
       { title: "Cloud Assessment Report — Generate consultant-grade AWS bill reviews" },

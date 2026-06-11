@@ -229,7 +229,7 @@ function AssessmentPage() {
       </header>
 
 
-      <main className="mx-auto max-w-7xl space-y-8 px-6 py-8">
+      <main className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:space-y-8 sm:px-6 sm:py-8">
         {showInput ? (
           <InputPanel
             onAnalyzed={(r) => {

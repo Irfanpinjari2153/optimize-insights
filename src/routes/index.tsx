@@ -226,7 +226,11 @@ function AssessmentPage() {
           <InputPanel
             onAnalyzed={(r) => {
               setReport(r);
+              setCurrentId(null);
               setShowInput(false);
+              if (search.assessment) {
+                navigate({ to: "/", search: {} });
+              }
             }}
           />
         ) : null}

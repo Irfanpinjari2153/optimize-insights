@@ -73,10 +73,61 @@ function currency(n: number, max = 2) {
 }
 
 function AssessmentPage() {
+  const search = Route.useSearch();
+  const navigate = useNavigate();
+  const { user, loading: authLoading } = useAuth();
   const [report, setReport] = useState<AssessmentReport>(mockReport);
+  const [currentId, setCurrentId] = useState<string | null>(null);
   const [view, setView] = useState<"dashboard" | "report">("dashboard");
   const [filter, setFilter] = useState<FilterKey>("all");
   const [showInput, setShowInput] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const save = useServerFn(saveAssessment);
+  const fetchOne = useServerFn(getAssessment);
+
+  // Load saved assessment from ?assessment=<uuid>
+  useEffect(() => {
+    if (!search.assessment || !user) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const a = await fetchOne({ data: { id: search.assessment! } });
+        if (cancelled) return;
+        setReport(a.report);
+        setCurrentId(a.id);
+        toast.success(`Loaded "${a.accountName}"`);
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Failed to load assessment");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [search.assessment, user, fetchOne]);
+
+  async function handleSave() {
+    if (!user) {
+      navigate({ to: "/auth" });
+      return;
+    }
+    setSaving(true);
+    try {
+      const row = await save({
+        data: {
+          id: currentId ?? undefined,
+          accountName: report.accountName,
+          report: report as unknown,
+        },
+      });
+      setCurrentId(row!.id);
+      toast.success(currentId ? "Assessment updated" : "Assessment saved");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Save failed");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   const filtered = useMemo(
     () =>
@@ -108,12 +159,7 @@ function AssessmentPage() {
       <header className="sticky top-0 z-30 border-b border-border bg-background/80 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-3.5">
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground">
-              <ArrowLeft className="size-4" />
-              Back
-            </Button>
-            <div className="hidden h-6 w-px bg-border md:block" />
-            <div className="hidden items-center gap-2 md:flex">
+            <div className="flex items-center gap-2">
               <div className="flex size-7 items-center justify-center rounded-lg bg-primary text-primary-foreground">
                 <CloudCog className="size-4" />
               </div>
@@ -123,11 +169,27 @@ function AssessmentPage() {
                 </div>
                 <div className="text-[11px] text-muted-foreground">
                   {report.accountName}
+                  {currentId ? " · saved" : ""}
                 </div>
               </div>
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {!authLoading && user ? (
+              <Link to="/history">
+                <Button variant="ghost" size="sm" className="gap-2">
+                  <History className="size-4" />
+                  History
+                </Button>
+              </Link>
+            ) : !authLoading ? (
+              <Link to="/auth">
+                <Button variant="ghost" size="sm" className="gap-2">
+                  <LogIn className="size-4" />
+                  Sign in
+                </Button>
+              </Link>
+            ) : null}
             <Button
               variant="outline"
               size="sm"
@@ -136,6 +198,20 @@ function AssessmentPage() {
             >
               <Sparkles className="size-4" />
               New analysis
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleSave}
+              disabled={saving}
+              className="gap-2"
+            >
+              {saving ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Save className="size-4" />
+              )}
+              {user ? (currentId ? "Update" : "Save") : "Sign in to save"}
             </Button>
             <Button size="sm" onClick={() => setView("report")} className="gap-2">
               <FileText className="size-4" />

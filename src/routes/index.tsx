@@ -157,36 +157,34 @@ function AssessmentPage() {
     <div className="min-h-screen bg-background">
       {/* Top bar */}
       <header className="sticky top-0 z-30 border-b border-border bg-background/80 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-3.5">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <div className="flex size-7 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                <CloudCog className="size-4" />
+        <div className="mx-auto grid max-w-7xl grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 sm:px-6 sm:py-3.5">
+          <div className="flex min-w-0 items-center gap-2">
+            <div className="grid size-7 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground">
+              <CloudCog className="size-4" />
+            </div>
+            <div className="min-w-0">
+              <div className="truncate text-sm font-semibold text-foreground">
+                Cloud Assessment
               </div>
-              <div>
-                <div className="text-sm font-semibold text-foreground">
-                  Cloud Assessment Report
-                </div>
-                <div className="text-[11px] text-muted-foreground">
-                  {report.accountName}
-                  {currentId ? " · saved" : ""}
-                </div>
+              <div className="truncate text-[11px] text-muted-foreground">
+                {report.accountName}
+                {currentId ? " · saved" : ""}
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2">
             {!authLoading && user ? (
               <Link to="/history">
-                <Button variant="ghost" size="sm" className="gap-2">
+                <Button variant="ghost" size="sm" className="gap-2 px-2 sm:px-3">
                   <History className="size-4" />
-                  History
+                  <span className="hidden sm:inline">History</span>
                 </Button>
               </Link>
             ) : !authLoading ? (
               <Link to="/auth">
-                <Button variant="ghost" size="sm" className="gap-2">
+                <Button variant="ghost" size="sm" className="gap-2 px-2 sm:px-3">
                   <LogIn className="size-4" />
-                  Sign in
+                  <span className="hidden sm:inline">Sign in</span>
                 </Button>
               </Link>
             ) : null}
@@ -194,34 +192,44 @@ function AssessmentPage() {
               variant="outline"
               size="sm"
               onClick={() => setShowInput((s) => !s)}
-              className="gap-2"
+              className="gap-2 px-2 sm:px-3"
+              aria-label="New analysis"
             >
               <Sparkles className="size-4" />
-              New analysis
+              <span className="hidden sm:inline">New analysis</span>
             </Button>
             <Button
               variant="outline"
               size="sm"
               onClick={handleSave}
               disabled={saving}
-              className="gap-2"
+              className="gap-2 px-2 sm:px-3"
+              aria-label="Save"
             >
               {saving ? (
                 <Loader2 className="size-4 animate-spin" />
               ) : (
                 <Save className="size-4" />
               )}
-              {user ? (currentId ? "Update" : "Save") : "Sign in to save"}
+              <span className="hidden sm:inline">
+                {user ? (currentId ? "Update" : "Save") : "Sign in to save"}
+              </span>
             </Button>
-            <Button size="sm" onClick={() => setView("report")} className="gap-2">
+            <Button
+              size="sm"
+              onClick={() => setView("report")}
+              className="gap-2 px-2 sm:px-3"
+              aria-label="Generate report"
+            >
               <FileText className="size-4" />
-              Generate Report
+              <span className="hidden sm:inline">Generate Report</span>
             </Button>
           </div>
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl space-y-8 px-6 py-8">
+
+      <main className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:space-y-8 sm:px-6 sm:py-8">
         {showInput ? (
           <InputPanel
             onAnalyzed={(r) => {
@@ -240,7 +248,7 @@ function AssessmentPage() {
           <div className="absolute inset-0 bg-grid-faint opacity-50" />
           <div className="absolute right-0 top-0 hidden h-full w-1/2 bg-gradient-to-l from-primary-soft/60 to-transparent lg:block" />
 
-          <div className="relative grid gap-8 p-8 lg:grid-cols-[1.4fr_1fr] lg:p-10">
+          <div className="relative grid gap-8 p-6 sm:p-8 lg:grid-cols-[1.4fr_1fr] lg:p-10">
             <div>
               <div className="flex items-center gap-2">
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-success/20 bg-success-soft px-2.5 py-1 text-xs font-medium text-success">
@@ -252,7 +260,7 @@ function AssessmentPage() {
                 </span>
               </div>
 
-              <h1 className="mt-4 font-display text-4xl leading-[1.05] tracking-tight text-foreground lg:text-5xl">
+              <h1 className="mt-4 font-display text-3xl leading-[1.05] tracking-tight text-foreground sm:text-4xl lg:text-5xl">
                 Executive cloud assessment
               </h1>
               <p className="mt-3 max-w-xl text-sm leading-relaxed text-muted-foreground">

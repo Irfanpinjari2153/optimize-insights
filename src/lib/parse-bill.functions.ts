@@ -174,8 +174,8 @@ Produce the full deep-dive assessment now. Remember: 10–14 findings, 5–7 rea
         "Lovable-API-Key": apiKey,
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-pro",
-        max_tokens: 8192,
+        model: "openai/gpt-5.5-pro",
+        reasoning_effort: "high",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },

@@ -4,6 +4,24 @@ import type { AssessmentReport } from "./assessment-types";
 import { MIN_SUMMARY_CHARS, SERVER_BILL_TEXT_LIMIT } from "./bill-input";
 import { normalizeReport } from "./normalize-assessment";
 
+export type ParseBillSummaryResult =
+  | {
+      ok: true;
+      report: AssessmentReport;
+    }
+  | {
+      ok: false;
+      code:
+        | "not_configured"
+        | "rate_limited"
+        | "credits_exhausted"
+        | "invalid_key"
+        | "request_failed"
+        | "invalid_response";
+      message: string;
+      retryAfterSeconds?: number;
+    };
+
 
 const ParseInput = z.object({
   billText: z
@@ -18,10 +36,14 @@ const ParseInput = z.object({
 
 export const parseBillSummary = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => ParseInput.parse(input))
-  .handler(async ({ data }): Promise<AssessmentReport> => {
+  .handler(async ({ data }): Promise<ParseBillSummaryResult> => {
     const apiKey = process.env.LOVABLE_API_KEY;
     if (!apiKey && !process.env.GEMINI_API_KEY) {
-      throw new Error("AI service is not configured. Please contact support.");
+      return {
+        ok: false,
+        code: "not_configured",
+        message: "AI service is not configured. Please contact support.",
+      };
     }
 
     const systemPrompt = `You are a Principal Cloud Economist and Well-Architected reviewer (AWS / Azure / GCP) with 15+ years of FinOps, security, and modernization experience. You are producing a deep, consultant-grade assessment that a CIO will read — NOT a generic checklist.
@@ -202,23 +224,45 @@ Produce the full deep-dive assessment now. Remember: 10–14 findings, 5–7 rea
       const txt = await response.text();
       console.error("AI provider error", { provider: useGemini ? "gemini" : "lovable", status: response.status, body: txt });
       if (response.status === 429) {
-        throw new Error(
-          `Rate limit hit on ${useGemini ? "Google AI Studio (free tier: ~15 req/min, 1500/day for gemini-2.0-flash)" : "Lovable AI"}. Wait ~60s and retry. Details: ${txt.slice(0, 300)}`
-        );
+        const retryAfterHeader = Number(response.headers.get("retry-after") ?? "60");
+        return {
+          ok: false,
+          code: "rate_limited",
+          retryAfterSeconds: Number.isFinite(retryAfterHeader) && retryAfterHeader > 0 ? retryAfterHeader : 60,
+          message: `Rate limit hit on ${useGemini ? "Google AI Studio (free tier: ~15 req/min, 1500/day for gemini-2.0-flash)" : "Lovable AI"}. Wait about 60s and retry.`,
+        };
       }
       if (response.status === 402) {
-        throw new Error("AI credits exhausted. Add credits or set GEMINI_API_KEY.");
+        return {
+          ok: false,
+          code: "credits_exhausted",
+          message: "AI credits exhausted. Add credits or set GEMINI_API_KEY.",
+        };
       }
       if (response.status === 401 || response.status === 403) {
-        throw new Error(`Invalid ${useGemini ? "GEMINI_API_KEY" : "Lovable"} key. Details: ${txt.slice(0, 300)}`);
+        return {
+          ok: false,
+          code: "invalid_key",
+          message: `Invalid ${useGemini ? "GEMINI_API_KEY" : "Lovable"} key. Check the key and try again.`,
+        };
       }
-      throw new Error(`AI request failed (${response.status}). ${txt.slice(0, 300)}`);
+      return {
+        ok: false,
+        code: "request_failed",
+        message: `AI request failed (${response.status}). Please try again in a moment.`,
+      };
     }
 
     const payload = await response.json();
     const toolCall = payload?.choices?.[0]?.message?.tool_calls?.[0];
     const args = toolCall?.function?.arguments;
-    if (!args) throw new Error("Assessment generation returned no structured output.");
+    if (!args) {
+      return {
+        ok: false,
+        code: "invalid_response",
+        message: "Assessment generation returned no structured output. Please retry.",
+      };
+    }
 
     const parsed = typeof args === "string" ? JSON.parse(args) : args;
 
@@ -233,5 +277,8 @@ Produce the full deep-dive assessment now. Remember: 10–14 findings, 5–7 rea
     };
 
     // Enforce internally-consistent math and scoring regardless of LLM output.
-    return normalizeReport(raw);
+    return {
+      ok: true,
+      report: normalizeReport(raw),
+    };
   });

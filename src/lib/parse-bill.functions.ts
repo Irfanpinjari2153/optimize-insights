@@ -198,16 +198,21 @@ Produce the full deep-dive assessment now. Remember: 10–14 findings, 5–7 rea
       }),
     });
 
-    if (response.status === 429) {
-      throw new Error("Rate limit reached. Please wait a moment and try again.");
-    }
-    if (response.status === 402) {
-      throw new Error("AI credits exhausted. Please add credits in workspace settings.");
-    }
     if (!response.ok) {
       const txt = await response.text();
-      console.error("AI gateway error", response.status, txt);
-      throw new Error("Failed to generate assessment. Please try again.");
+      console.error("AI provider error", { provider: useGemini ? "gemini" : "lovable", status: response.status, body: txt });
+      if (response.status === 429) {
+        throw new Error(
+          `Rate limit hit on ${useGemini ? "Google AI Studio (free tier: ~15 req/min, 1500/day for gemini-2.0-flash)" : "Lovable AI"}. Wait ~60s and retry. Details: ${txt.slice(0, 300)}`
+        );
+      }
+      if (response.status === 402) {
+        throw new Error("AI credits exhausted. Add credits or set GEMINI_API_KEY.");
+      }
+      if (response.status === 401 || response.status === 403) {
+        throw new Error(`Invalid ${useGemini ? "GEMINI_API_KEY" : "Lovable"} key. Details: ${txt.slice(0, 300)}`);
+      }
+      throw new Error(`AI request failed (${response.status}). ${txt.slice(0, 300)}`);
     }
 
     const payload = await response.json();

@@ -20,7 +20,7 @@ export const parseBillSummary = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => ParseInput.parse(input))
   .handler(async ({ data }): Promise<AssessmentReport> => {
     const apiKey = process.env.LOVABLE_API_KEY;
-    if (!apiKey) {
+    if (!apiKey && !process.env.GEMINI_API_KEY) {
       throw new Error("AI service is not configured. Please contact support.");
     }
 

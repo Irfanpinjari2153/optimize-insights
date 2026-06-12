@@ -167,14 +167,19 @@ Produce the full deep-dive assessment now. Remember: 10–14 findings, 5–7 rea
       },
     };
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const geminiKey = process.env.GEMINI_API_KEY;
+    const useGemini = !!geminiKey;
+    const response = await fetch(
+      useGemini
+        ? "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+        : "https://ai.gateway.lovable.dev/v1/chat/completions",
+      {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Lovable-API-Key": apiKey,
-      },
+      headers: useGemini
+        ? { "Content-Type": "application/json", Authorization: `Bearer ${geminiKey}` }
+        : { "Content-Type": "application/json", "Lovable-API-Key": apiKey! },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: useGemini ? "gemini-2.0-flash" : "google/gemini-3-flash-preview",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },

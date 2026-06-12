@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Upload, Loader2, Sparkles, Plus, Trash2 } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { Button } from "@/components/ui/button";
@@ -32,11 +32,22 @@ export function InputPanel({
   );
   const [accountName, setAccountName] = useState("");
   const [loading, setLoading] = useState(false);
+  const [retryAfterSeconds, setRetryAfterSeconds] = useState(0);
   const parse = useServerFn(parseBillSummary);
 
   const readyBills = bills.filter((b) => b.text.trim().length >= MIN_SUMMARY_CHARS);
   const filledCount = readyBills.length;
   const combined = combineBillSummaries(readyBills);
+
+  useEffect(() => {
+    if (retryAfterSeconds <= 0) return;
+
+    const timer = window.setTimeout(() => {
+      setRetryAfterSeconds((seconds) => Math.max(0, seconds - 1));
+    }, 1000);
+
+    return () => window.clearTimeout(timer);
+  }, [retryAfterSeconds]);
 
   function updateBill(id: string, patch: Partial<Bill>) {
     setBills((prev) => prev.map((b) => (b.id === id ? { ...b, ...patch } : b)));
@@ -96,10 +107,20 @@ export function InputPanel({
 
     setLoading(true);
     try {
-      const report = await parse({
+      const result = await parse({
         data: { billText: combined, accountName: accountName || undefined },
       });
-      onAnalyzed(report);
+
+      if (!result.ok) {
+        if (result.code === "rate_limited") {
+          setRetryAfterSeconds(result.retryAfterSeconds ?? 60);
+        }
+        toast.error(result.message);
+        return;
+      }
+
+      setRetryAfterSeconds(0);
+      onAnalyzed(result.report);
       toast.success("Assessment generated");
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Failed to analyze bill";
@@ -131,16 +152,22 @@ export function InputPanel({
           >
             {filledCount} / {MAX_BILLS} ready
           </span>
-          <Button onClick={analyze} disabled={loading} className="gap-2">
+          <Button onClick={analyze} disabled={loading || retryAfterSeconds > 0} className="gap-2">
             {loading ? (
               <Loader2 className="size-4 animate-spin" />
             ) : (
               <Sparkles className="size-4" />
             )}
-            Analyze
+            {retryAfterSeconds > 0 ? `Retry in ${retryAfterSeconds}s` : "Analyze"}
           </Button>
         </div>
       </div>
+
+      {retryAfterSeconds > 0 ? (
+        <div className="mt-4 rounded-xl border border-warning/30 bg-warning-soft px-3 py-2 text-sm text-foreground">
+          Free-model quota is temporarily exhausted. Please wait {retryAfterSeconds}s, then try again.
+        </div>
+      ) : null}
 
       <div className="mt-4">
         <input

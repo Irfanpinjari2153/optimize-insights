@@ -223,10 +223,13 @@ Produce the full deep-dive assessment now. Remember: 10–14 findings, 5–7 rea
           : "google/gemini-3-flash-preview";
 
     let response: Response;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 55_000);
     try {
       response = await fetch(endpoint, {
         method: "POST",
         headers,
+        signal: controller.signal,
         body: JSON.stringify({
           model,
           messages: [
@@ -248,6 +251,13 @@ Produce the full deep-dive assessment now. Remember: 10–14 findings, 5–7 rea
         }),
       });
     } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") {
+        return {
+          ok: false,
+          code: "request_failed",
+          message: "The AI model timed out before finishing. Use shorter bill summaries and try again.",
+        };
+      }
       console.error("AI provider network failure", {
         provider,
         endpoint,
@@ -259,11 +269,20 @@ Produce the full deep-dive assessment now. Remember: 10–14 findings, 5–7 rea
         message:
           "The AI provider could not be reached right now. Please try again in a moment.",
       };
+    } finally {
+      clearTimeout(timeoutId);
     }
 
     if (!response.ok) {
       const txt = await response.text();
       console.error("AI provider error", { provider, status: response.status, body: txt });
+      if (response.status === 524 || response.status === 504 || response.status === 408) {
+        return {
+          ok: false,
+          code: "request_failed",
+          message: "The AI model timed out before finishing. Use shorter bill summaries and try again.",
+        };
+      }
       if (response.status === 429) {
         const retryAfterHeader = Number(response.headers.get("retry-after") ?? "60");
         return {

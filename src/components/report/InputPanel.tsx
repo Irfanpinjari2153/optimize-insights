@@ -234,7 +234,7 @@ export function InputPanel({
 
       <div className="mt-3 flex items-center justify-between">
         <p className="text-xs text-muted-foreground">
-          {bills.length} of {MAX_BILLS} periods · {combined.length.toLocaleString()} / {MAX_COMBINED_BILL_CHARS.toLocaleString()} combined chars
+          {bills.length} of {MAX_BILLS} periods · {combined.length.toLocaleString()} combined chars
         </p>
         <Button
           type="button"

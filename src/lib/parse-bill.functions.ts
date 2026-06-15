@@ -108,16 +108,18 @@ ENUMS
 OUTPUT
 - Emit ONE call to the emit_assessment tool with STRICT JSON. No prose, no markdown, no code fences.`;
 
+    const aiBillText = compactBillTextForAi(data.billText);
+
     const userPrompt = `Account name: ${data.accountName || "Cloud Environment"}
 
-The user has pasted ${data.billText.length.toLocaleString()} characters of cloud bill / cost-explorer text spanning multiple billing periods, separated by lines of '====='. Parse every period.
+The user pasted ${data.billText.length.toLocaleString()} characters of cloud bill / cost-explorer text spanning multiple billing periods. The analysis input below has been compacted to ${aiBillText.length.toLocaleString()} high-signal characters containing period headers, totals, cloud services, units, and USD amounts. Parse every visible period.
 
 BILL SUMMARY TEXT:
 """
-${data.billText}
+${aiBillText}
 """
 
-Produce the assessment now. Return a proper detailed analysis: 10 findings, exactly 5 reasoning sentences per finding, explicit assumptions, service-level evidence, conservative savings math, and one executable nextAction.`;
+Produce the assessment now. Return a proper detailed analysis: 8 findings, exactly 4 reasoning sentences per finding, explicit assumptions, service-level evidence, conservative savings math, and one executable nextAction.`;
 
     const schema = {
       type: "object",

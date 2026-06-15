@@ -43,15 +43,19 @@ export function getBillTextIssue(text: string) {
 }
 
 export function clampBillText(text: string) {
-  return normalizeBillText(text);
+  const normalized = normalizeBillText(text);
+  if (normalized.length <= MAX_BILL_CHARS) return normalized;
+  return normalized.slice(0, MAX_BILL_CHARS) + "\n…[truncated]";
 }
 
 export function combineBillSummaries(bills: BillSummaryInput[]) {
-  return bills
+  const joined = bills
     .filter((bill) => bill.text.trim().length >= MIN_SUMMARY_CHARS)
     .map(
       (bill, index) =>
-        `===== ${bill.label?.trim() || `Billing period ${index + 1}`} =====\n${bill.text.trim()}`,
+        `===== ${bill.label?.trim() || `Billing period ${index + 1}`} =====\n${clampBillText(bill.text).trim()}`,
     )
     .join("\n\n");
+  if (joined.length <= MAX_COMBINED_BILL_CHARS) return joined;
+  return joined.slice(0, MAX_COMBINED_BILL_CHARS) + "\n…[truncated]";
 }

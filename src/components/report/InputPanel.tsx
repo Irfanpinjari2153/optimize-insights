@@ -9,6 +9,7 @@ import {
   MIN_BILLS,
   MIN_SUMMARY_CHARS,
   combineBillSummaries,
+  getBillTextIssue,
   normalizeBillText,
 } from "@/lib/bill-input";
 import { toast } from "sonner";
@@ -69,6 +70,11 @@ export function InputPanel({
   async function handleFile(id: string, file: File) {
     const content = await file.text();
     const normalized = normalizeBillText(content);
+    const issue = getBillTextIssue(normalized);
+    if (issue) {
+      toast.error(issue);
+      return;
+    }
     updateBill(id, { text: normalized, label: file.name.replace(/\.[^.]+$/, "") });
     toast.success(`Loaded ${file.name}`);
   }
@@ -82,6 +88,12 @@ export function InputPanel({
     }
     if (bills.length > MAX_BILLS) {
       toast.error(`Maximum ${MAX_BILLS} bill summaries allowed.`);
+      return;
+    }
+
+    const invalidBill = bills.find((bill) => bill.text.trim() && getBillTextIssue(bill.text));
+    if (invalidBill) {
+      toast.error(getBillTextIssue(invalidBill.text) || "One billing period contains unreadable input.");
       return;
     }
 

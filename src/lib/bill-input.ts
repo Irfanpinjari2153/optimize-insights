@@ -1,8 +1,8 @@
 export const MIN_BILLS = 3;
 export const MAX_BILLS = 6;
 export const MIN_SUMMARY_CHARS = 20;
-export const MAX_BILL_CHARS = 10_000;
-export const MAX_COMBINED_BILL_CHARS = 45_000;
+export const MAX_BILL_CHARS = 4_000;
+export const MAX_COMBINED_BILL_CHARS = 18_000;
 export const SERVER_BILL_TEXT_LIMIT = MAX_COMBINED_BILL_CHARS;
 
 const RAW_PDF_MARKERS = ["%PDF-", "endobj", "stream", "xref", "trailer", "/Type /XObject"];

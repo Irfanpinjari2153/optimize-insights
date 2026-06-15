@@ -213,7 +213,7 @@ Produce the full deep-dive assessment now. Remember: 10–14 findings, 5–7 rea
 
     const model =
       provider === "nvidia"
-        ? "meta/llama-3.3-70b-instruct"
+        ? "deepseek-ai/deepseek-v4-flash"
         : provider === "gemini"
           ? "gemini-2.0-flash"
           : "google/gemini-3-flash-preview";

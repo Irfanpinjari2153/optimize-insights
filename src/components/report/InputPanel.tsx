@@ -72,17 +72,7 @@ export function InputPanel({
   async function handleFile(id: string, file: File) {
     const content = await file.text();
     const normalized = normalizeBillText(content);
-    const text = clampBillText(normalized);
-
-    updateBill(id, { text, label: file.name.replace(/\.[^.]+$/, "") });
-
-    if (normalized.length > MAX_BILL_CHARS) {
-      toast.warning(
-        `${file.name} was trimmed to ${MAX_BILL_CHARS.toLocaleString()} characters. Upload a summarized bill period rather than a full raw export.`,
-      );
-      return;
-    }
-
+    updateBill(id, { text: normalized, label: file.name.replace(/\.[^.]+$/, "") });
     toast.success(`Loaded ${file.name}`);
   }
 

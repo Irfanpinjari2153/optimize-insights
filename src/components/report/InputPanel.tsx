@@ -118,7 +118,7 @@ export function InputPanel({
       });
 
       if (!result || typeof result !== "object") {
-        toast.error("Analysis timed out. I shortened the AI request limits; please try again with concise billing summaries.");
+        toast.error("Analysis timed out. I reduced the AI payload size; please try again.");
         return;
       }
 

@@ -14,6 +14,28 @@ type AiChatPayload = {
   }>;
 };
 
+const MAX_AI_CONTEXT_CHARS = 24_000;
+
+function compactBillTextForAi(text: string) {
+  const lines = text.split("\n");
+  const important = lines.filter((line) => {
+    const trimmed = line.trim();
+    if (!trimmed) return false;
+    if (trimmed.startsWith("=====")) return true;
+    if (/\$\s?\d|\bUSD\b|total|subtotal|tax|credit/i.test(trimmed)) return true;
+    if (/EC2|Elastic|Compute|S3|Storage|EBS|RDS|Database|Lambda|NAT|VPC|CloudFront|Route 53|KMS|GuardDuty|Security Hub|Config|CloudTrail|Support|Data Transfer|Bandwidth/i.test(trimmed)) {
+      return trimmed.length <= 220;
+    }
+    return false;
+  });
+
+  const compacted = important.join("\n");
+  const source = compacted.trim().length >= MIN_SUMMARY_CHARS ? compacted : text;
+  return source.length <= MAX_AI_CONTEXT_CHARS
+    ? source
+    : `${source.slice(0, MAX_AI_CONTEXT_CHARS)}\n…[additional bill lines omitted to keep analysis within request time]`;
+}
+
 export type ParseBillSummaryResult =
   | {
       ok: true;

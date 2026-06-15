@@ -206,14 +206,18 @@ Produce the full deep-dive assessment now. Remember: 10–14 findings, 5–7 rea
 
     const headers: Record<string, string> =
       provider === "nvidia"
-        ? { "Content-Type": "application/json", Authorization: `Bearer ${nvidiaKey}` }
+        ? {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            Authorization: `Bearer ${nvidiaKey}`,
+          }
         : provider === "gemini"
           ? { "Content-Type": "application/json", Authorization: `Bearer ${geminiKey}` }
           : { "Content-Type": "application/json", "Lovable-API-Key": apiKey! };
 
     const model =
       provider === "nvidia"
-        ? "deepseek-ai/deepseek-v4-flash"
+        ? "meta/llama-3.3-70b-instruct"
         : provider === "gemini"
           ? "gemini-2.0-flash"
           : "google/gemini-3-flash-preview";
@@ -229,6 +233,7 @@ Produce the full deep-dive assessment now. Remember: 10–14 findings, 5–7 rea
             { role: "system", content: systemPrompt },
             { role: "user", content: userPrompt },
           ],
+          max_tokens: 4096,
           tools: [
             {
               type: "function",

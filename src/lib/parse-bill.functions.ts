@@ -87,9 +87,9 @@ OPERATING PRINCIPLES
 - monthlySavings is a realistic USD number (not a percent). Use 0 (or omit) for non-cost findings.
 
 OUTPUT DEPTH REQUIREMENTS
-- 10 findings total, distributed across all four categories (cost, security, modernization, governance). Minimum: 4 cost, 2 security, 2 governance, 1 modernization.
-- Each finding: title is a concrete claim tied to a service or spend pattern. Provide exactly 5 reasoning points, each a full sentence with evidence, calculation, risk, comparison, or implementation logic. Do not use generic reasoning.
-- For cost findings, at least 3 reasoning points must include numeric math from the bill text, such as baseline spend, affected portion, conservative percentage, monthly savings, or annualized impact.
+- 8 findings total, distributed across all four categories (cost, security, modernization, governance). Minimum: 3 cost, 2 security, 1 governance, 1 modernization.
+- Each finding: title is a concrete claim tied to a service or spend pattern. Provide exactly 4 reasoning points, each a full sentence with evidence, calculation, risk, comparison, or implementation logic. Do not use generic reasoning.
+- For cost findings, at least 2 reasoning points must include numeric math from the bill text, such as baseline spend, affected portion, conservative percentage, monthly savings, or annualized impact.
 - For security/governance/modernization findings, explain what the bill proves directly, what is inferred from missing/visible line items, the operational risk, and how to validate it in cloud consoles/telemetry.
 - assumptions[] lists unverified premises when evidenceType is inference/assumption. If evidenceType is direct, assumptions[] may be empty.
 - nextAction is one directive a platform engineer can execute this sprint, including the service, data source, and target change.

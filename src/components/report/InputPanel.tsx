@@ -21,11 +21,7 @@ function newBill(i: number): Bill {
   return { id: `bill-${Date.now()}-${i}`, label: `Billing period ${i + 1}`, text: "" };
 }
 
-export function InputPanel({
-  onAnalyzed,
-}: {
-  onAnalyzed: (report: AssessmentReport) => void;
-}) {
+export function InputPanel({ onAnalyzed }: { onAnalyzed: (report: AssessmentReport) => void }) {
   const [bills, setBills] = useState<Bill[]>(() =>
     Array.from({ length: MIN_BILLS }, (_, i) => newBill(i)),
   );
@@ -106,10 +102,11 @@ export function InputPanel({
 
     const invalidBill = bills.find((bill) => bill.text.trim() && getBillTextIssue(bill.text));
     if (invalidBill) {
-      toast.error(getBillTextIssue(invalidBill.text) || "One billing period contains unreadable input.");
+      toast.error(
+        getBillTextIssue(invalidBill.text) || "One billing period contains unreadable input.",
+      );
       return;
     }
-
 
     setLoading(true);
     try {

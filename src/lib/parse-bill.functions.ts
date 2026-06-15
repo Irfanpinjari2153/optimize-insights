@@ -218,28 +218,43 @@ Produce the full deep-dive assessment now. Remember: 10–14 findings, 5–7 rea
           ? "gemini-2.0-flash"
           : "google/gemini-3-flash-preview";
 
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        tools: [
-          {
-            type: "function",
-            function: {
-              name: "emit_assessment",
-              description: "Emit the structured cloud assessment report.",
-              parameters: schema,
+    let response: Response;
+    try {
+      response = await fetch(endpoint, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt },
+          ],
+          tools: [
+            {
+              type: "function",
+              function: {
+                name: "emit_assessment",
+                description: "Emit the structured cloud assessment report.",
+                parameters: schema,
+              },
             },
-          },
-        ],
-        tool_choice: { type: "function", function: { name: "emit_assessment" } },
-      }),
-    });
+          ],
+          tool_choice: { type: "function", function: { name: "emit_assessment" } },
+        }),
+      });
+    } catch (error) {
+      console.error("AI provider network failure", {
+        provider,
+        endpoint,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return {
+        ok: false,
+        code: "request_failed",
+        message:
+          "The AI provider could not be reached right now. Please try again in a moment.",
+      };
+    }
 
     if (!response.ok) {
       const txt = await response.text();
@@ -274,7 +289,21 @@ Produce the full deep-dive assessment now. Remember: 10–14 findings, 5–7 rea
       };
     }
 
-    const payload = await response.json();
+    let payload: any;
+    try {
+      payload = await response.json();
+    } catch (error) {
+      console.error("AI provider returned invalid JSON", {
+        provider,
+        status: response.status,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return {
+        ok: false,
+        code: "invalid_response",
+        message: "Assessment generation returned an unreadable response. Please retry.",
+      };
+    }
     const toolCall = payload?.choices?.[0]?.message?.tool_calls?.[0];
     const args = toolCall?.function?.arguments;
     if (!args) {

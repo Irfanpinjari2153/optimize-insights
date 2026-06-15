@@ -189,42 +189,43 @@ Produce the assessment now. Keep output compact: 8 findings, 3 reasoning sentenc
       },
     };
 
-    const nvidiaKey = process.env.NVIDIA_API_KEY;
+    // Prefer Lovable AI Gateway (stronger model, no extra config) over weaker fallbacks
     const geminiKey = process.env.GEMINI_API_KEY;
-    const provider: "nvidia" | "gemini" | "lovable" = nvidiaKey
-      ? "nvidia"
+    const nvidiaKey = process.env.NVIDIA_API_KEY;
+    const provider: "lovable" | "gemini" | "nvidia" = apiKey
+      ? "lovable"
       : geminiKey
         ? "gemini"
-        : "lovable";
+        : "nvidia";
 
     const endpoint =
-      provider === "nvidia"
-        ? "https://integrate.api.nvidia.com/v1/chat/completions"
+      provider === "lovable"
+        ? "https://ai.gateway.lovable.dev/v1/chat/completions"
         : provider === "gemini"
           ? "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
-          : "https://ai.gateway.lovable.dev/v1/chat/completions";
+          : "https://integrate.api.nvidia.com/v1/chat/completions";
 
     const headers: Record<string, string> =
-      provider === "nvidia"
-        ? {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-            Authorization: `Bearer ${nvidiaKey}`,
-          }
+      provider === "lovable"
+        ? { "Content-Type": "application/json", "Lovable-API-Key": apiKey! }
         : provider === "gemini"
           ? { "Content-Type": "application/json", Authorization: `Bearer ${geminiKey}` }
-          : { "Content-Type": "application/json", "Lovable-API-Key": apiKey! };
+          : {
+              "Content-Type": "application/json",
+              Accept: "application/json",
+              Authorization: `Bearer ${nvidiaKey}`,
+            };
 
     const model =
-      provider === "nvidia"
-        ? "meta/llama-3.1-8b-instruct"
+      provider === "lovable"
+        ? "google/gemini-2.5-flash"
         : provider === "gemini"
           ? "gemini-2.0-flash"
-          : "google/gemini-3-flash-preview";
+          : "meta/llama-3.3-70b-instruct";
 
     let response: Response;
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 22_000);
+    const timeoutId = setTimeout(() => controller.abort(), 90_000);
     try {
       response = await fetch(endpoint, {
         method: "POST",
@@ -236,7 +237,7 @@ Produce the assessment now. Keep output compact: 8 findings, 3 reasoning sentenc
             { role: "system", content: systemPrompt },
             { role: "user", content: userPrompt },
           ],
-          max_tokens: 2400,
+          max_tokens: 8000,
           tools: [
             {
               type: "function",

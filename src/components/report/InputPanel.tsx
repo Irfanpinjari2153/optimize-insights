@@ -88,12 +88,6 @@ export function InputPanel({
       return;
     }
 
-    if (combined.length > MAX_COMBINED_BILL_CHARS) {
-      toast.error(
-        `The combined input is too large (${combined.length.toLocaleString()} characters). Keep it under ${MAX_COMBINED_BILL_CHARS.toLocaleString()} by pasting summarized billing periods.`,
-      );
-      return;
-    }
 
     setLoading(true);
     try {

@@ -217,14 +217,14 @@ Produce the assessment now. Keep output compact: 8 findings, 3 reasoning sentenc
 
     const model =
       provider === "nvidia"
-        ? "meta/llama-3.3-70b-instruct"
+        ? "meta/llama-3.1-8b-instruct"
         : provider === "gemini"
           ? "gemini-2.0-flash"
           : "google/gemini-3-flash-preview";
 
     let response: Response;
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 55_000);
+    const timeoutId = setTimeout(() => controller.abort(), 22_000);
     try {
       response = await fetch(endpoint, {
         method: "POST",

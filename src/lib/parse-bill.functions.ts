@@ -273,7 +273,7 @@ Produce the assessment now. Return a proper detailed analysis: 8 findings, exact
             { role: "system", content: systemPrompt },
             { role: "user", content: userPrompt },
           ],
-          max_tokens: 12000,
+          max_tokens: 6000,
           tools: [
             {
               type: "function",
@@ -387,14 +387,14 @@ Produce the assessment now. Return a proper detailed analysis: 8 findings, exact
     const shallowFinding = findings.find(
       (finding: { points?: unknown[]; title?: string }) =>
         !Array.isArray(finding.points) ||
-        finding.points.length < 5 ||
+        finding.points.length < 4 ||
         finding.points.some(
           (point) => typeof point !== "string" || point.trim().split(/\s+/).length < 10,
         ) ||
         (typeof finding.title === "string" && finding.title.trim().split(/\s+/).length < 4),
     );
 
-    if (findings.length < 10 || shallowFinding) {
+    if (findings.length < 8 || shallowFinding) {
       return {
         ok: false,
         code: "invalid_response",

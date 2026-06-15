@@ -12,6 +12,7 @@ import {
   getBillTextIssue,
   normalizeBillText,
 } from "@/lib/bill-input";
+import { extractTextFromPdf } from "@/lib/pdf-extract";
 import { toast } from "sonner";
 
 type Bill = { id: string; label: string; text: string };

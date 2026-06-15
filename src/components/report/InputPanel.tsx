@@ -117,6 +117,11 @@ export function InputPanel({
         data: { billText: combined, accountName: accountName || undefined },
       });
 
+      if (!result || typeof result !== "object") {
+        toast.error("The server did not return a response. The input may be too large — try shorter bill summaries.");
+        return;
+      }
+
       if (!result.ok) {
         if (result.code === "rate_limited") {
           setRetryAfterSeconds(result.retryAfterSeconds ?? 60);

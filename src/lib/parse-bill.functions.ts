@@ -23,7 +23,11 @@ function compactBillTextForAi(text: string) {
     if (!trimmed) return false;
     if (trimmed.startsWith("=====")) return true;
     if (/\$\s?\d|\bUSD\b|total|subtotal|tax|credit/i.test(trimmed)) return true;
-    if (/EC2|Elastic|Compute|S3|Storage|EBS|RDS|Database|Lambda|NAT|VPC|CloudFront|Route 53|KMS|GuardDuty|Security Hub|Config|CloudTrail|Support|Data Transfer|Bandwidth/i.test(trimmed)) {
+    if (
+      /EC2|Elastic|Compute|S3|Storage|EBS|RDS|Database|Lambda|NAT|VPC|CloudFront|Route 53|KMS|GuardDuty|Security Hub|Config|CloudTrail|Support|Data Transfer|Bandwidth/i.test(
+        trimmed,
+      )
+    ) {
       return trimmed.length <= 220;
     }
     return false;

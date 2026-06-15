@@ -22,7 +22,6 @@ export type ParseBillSummaryResult =
       retryAfterSeconds?: number;
     };
 
-
 const ParseInput = z.object({
   billText: z
     .string()
@@ -259,7 +258,8 @@ Produce the assessment now. Return a proper detailed analysis: 10 findings, exac
         return {
           ok: false,
           code: "request_failed",
-          message: "The AI model timed out before finishing. Use shorter bill summaries and try again.",
+          message:
+            "The AI model timed out before finishing. Use shorter bill summaries and try again.",
         };
       }
       console.error("AI provider network failure", {
@@ -292,7 +292,8 @@ Produce the assessment now. Return a proper detailed analysis: 10 findings, exac
         return {
           ok: false,
           code: "rate_limited",
-          retryAfterSeconds: Number.isFinite(retryAfterHeader) && retryAfterHeader > 0 ? retryAfterHeader : 60,
+          retryAfterSeconds:
+            Number.isFinite(retryAfterHeader) && retryAfterHeader > 0 ? retryAfterHeader : 60,
           message: `Rate limit hit on ${provider}. Wait about 60s and retry.`,
         };
       }

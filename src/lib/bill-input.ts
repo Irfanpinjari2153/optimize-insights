@@ -1,9 +1,9 @@
 export const MIN_BILLS = 3;
 export const MAX_BILLS = 6;
 export const MIN_SUMMARY_CHARS = 20;
-export const SERVER_BILL_TEXT_LIMIT = Number.MAX_SAFE_INTEGER;
-export const MAX_BILL_CHARS = Number.MAX_SAFE_INTEGER;
-export const MAX_COMBINED_BILL_CHARS = Number.MAX_SAFE_INTEGER;
+export const MAX_BILL_CHARS = 30_000;
+export const MAX_COMBINED_BILL_CHARS = 120_000;
+export const SERVER_BILL_TEXT_LIMIT = MAX_COMBINED_BILL_CHARS;
 
 const RAW_PDF_MARKERS = ["%PDF-", "endobj", "stream", "xref", "trailer", "/Type /XObject"];
 const CONTROL_CHARS = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g;

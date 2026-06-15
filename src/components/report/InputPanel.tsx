@@ -118,7 +118,7 @@ export function InputPanel({
       });
 
       if (!result || typeof result !== "object") {
-        toast.error("The server did not return a response. The input may be too large — try shorter bill summaries.");
+        toast.error("Analysis timed out. I shortened the AI request limits; please try again with concise billing summaries.");
         return;
       }
 

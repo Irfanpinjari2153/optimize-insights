@@ -145,8 +145,8 @@ export function InputPanel({ onAnalyzed }: { onAnalyzed: (report: AssessmentRepo
           <h3 className="text-base font-semibold text-foreground">Analyze bill summaries</h3>
           <p className="mt-1 text-sm text-muted-foreground">
             Provide between <strong className="text-foreground">{MIN_BILLS}</strong> and{" "}
-            <strong className="text-foreground">{MAX_BILLS}</strong> billing periods.
-            Trend analysis requires at least {MIN_BILLS} months of data.
+            <strong className="text-foreground">{MAX_BILLS}</strong> billing periods. Trend analysis
+            requires at least {MIN_BILLS} months of data.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -173,7 +173,8 @@ export function InputPanel({ onAnalyzed }: { onAnalyzed: (report: AssessmentRepo
 
       {retryAfterSeconds > 0 ? (
         <div className="mt-4 rounded-xl border border-warning/30 bg-warning-soft px-3 py-2 text-sm text-foreground">
-          Free-model quota is temporarily exhausted. Please wait {retryAfterSeconds}s, then try again.
+          Free-model quota is temporarily exhausted. Please wait {retryAfterSeconds}s, then try
+          again.
         </div>
       ) : null}
 
@@ -190,10 +191,7 @@ export function InputPanel({ onAnalyzed }: { onAnalyzed: (report: AssessmentRepo
         {bills.map((b, i) => {
           const filled = b.text.trim().length >= 20;
           return (
-            <div
-              key={b.id}
-              className="rounded-xl border border-border bg-background/60 p-3"
-            >
+            <div key={b.id} className="rounded-xl border border-border bg-background/60 p-3">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="inline-flex size-6 items-center justify-center rounded-md bg-primary-soft text-[11px] font-semibold text-primary">
                   {i + 1}
@@ -231,11 +229,7 @@ export function InputPanel({ onAnalyzed }: { onAnalyzed: (report: AssessmentRepo
                   onClick={() => removeBill(b.id)}
                   disabled={bills.length <= MIN_BILLS}
                   className="inline-flex items-center justify-center rounded-md border border-border p-1.5 text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
-                  title={
-                    bills.length <= MIN_BILLS
-                      ? `Minimum ${MIN_BILLS} required`
-                      : "Remove"
-                  }
+                  title={bills.length <= MIN_BILLS ? `Minimum ${MIN_BILLS} required` : "Remove"}
                 >
                   <Trash2 className="size-3.5" />
                 </button>

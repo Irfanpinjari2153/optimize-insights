@@ -189,39 +189,38 @@ Produce the assessment now. Keep output compact: 8 findings, 3 reasoning sentenc
       },
     };
 
-    // Prefer Lovable AI Gateway (stronger model, no extra config) over weaker fallbacks
-    const geminiKey = process.env.GEMINI_API_KEY;
     const nvidiaKey = process.env.NVIDIA_API_KEY;
-    const provider: "lovable" | "gemini" | "nvidia" = apiKey
-      ? "lovable"
+    const geminiKey = process.env.GEMINI_API_KEY;
+    const provider: "nvidia" | "gemini" | "lovable" = nvidiaKey
+      ? "nvidia"
       : geminiKey
         ? "gemini"
-        : "nvidia";
+        : "lovable";
 
     const endpoint =
-      provider === "lovable"
-        ? "https://ai.gateway.lovable.dev/v1/chat/completions"
+      provider === "nvidia"
+        ? "https://integrate.api.nvidia.com/v1/chat/completions"
         : provider === "gemini"
           ? "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
-          : "https://integrate.api.nvidia.com/v1/chat/completions";
+          : "https://ai.gateway.lovable.dev/v1/chat/completions";
 
     const headers: Record<string, string> =
-      provider === "lovable"
-        ? { "Content-Type": "application/json", "Lovable-API-Key": apiKey! }
+      provider === "nvidia"
+        ? {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            Authorization: `Bearer ${nvidiaKey}`,
+          }
         : provider === "gemini"
           ? { "Content-Type": "application/json", Authorization: `Bearer ${geminiKey}` }
-          : {
-              "Content-Type": "application/json",
-              Accept: "application/json",
-              Authorization: `Bearer ${nvidiaKey}`,
-            };
+          : { "Content-Type": "application/json", "Lovable-API-Key": apiKey! };
 
     const model =
-      provider === "lovable"
-        ? "google/gemini-2.5-flash"
+      provider === "nvidia"
+        ? "meta/llama-3.3-70b-instruct"
         : provider === "gemini"
           ? "gemini-2.0-flash"
-          : "meta/llama-3.3-70b-instruct";
+          : "google/gemini-3-flash-preview";
 
     let response: Response;
     const controller = new AbortController();

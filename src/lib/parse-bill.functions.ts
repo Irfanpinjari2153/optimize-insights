@@ -280,8 +280,7 @@ Produce the assessment now. Return a proper detailed analysis: 10 findings, exac
       return {
         ok: false,
         code: "request_failed",
-        message:
-          "The AI provider could not be reached right now. Please try again in a moment.",
+        message: "The AI provider could not be reached right now. Please try again in a moment.",
       };
     } finally {
       clearTimeout(timeoutId);
@@ -298,7 +297,8 @@ Produce the assessment now. Return a proper detailed analysis: 10 findings, exac
         return {
           ok: false,
           code: "request_failed",
-          message: "The AI model timed out before finishing. Use shorter bill summaries and try again.",
+          message:
+            "The AI model timed out before finishing. Use shorter bill summaries and try again.",
         };
       }
       if (response.status === 429) {

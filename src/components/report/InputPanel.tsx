@@ -6,11 +6,8 @@ import { parseBillSummary } from "@/lib/parse-bill.functions";
 import type { AssessmentReport } from "@/lib/assessment-types";
 import {
   MAX_BILLS,
-  MAX_BILL_CHARS,
-  MAX_COMBINED_BILL_CHARS,
   MIN_BILLS,
   MIN_SUMMARY_CHARS,
-  clampBillText,
   combineBillSummaries,
   normalizeBillText,
 } from "@/lib/bill-input";

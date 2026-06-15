@@ -221,14 +221,11 @@ export function InputPanel({
                 onChange={(e) => updateBill(b.id, { text: normalizeBillText(e.target.value) })}
                 placeholder={`Paste bill summary for period ${i + 1}…\n\nExample:\nSep 2025 — total $384.68\n  Elastic Compute Cloud ........ $215.40\n  Simple Storage Service ....... $38.92`}
                 rows={5}
-                maxLength={MAX_BILL_CHARS}
                 className="mt-2 w-full resize-y rounded-md border border-border bg-background px-3 py-2 font-mono text-[12px] leading-relaxed text-foreground outline-none ring-ring/40 placeholder:text-muted-foreground focus:ring-2"
               />
               <div className="mt-1 flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
                 <span>Use a concise bill summary for this period.</span>
-                <span>
-                  {b.text.length.toLocaleString()} / {MAX_BILL_CHARS.toLocaleString()} chars
-                </span>
+                <span>{b.text.length.toLocaleString()} chars</span>
               </div>
             </div>
           );

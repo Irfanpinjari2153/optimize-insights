@@ -69,8 +69,20 @@ export function InputPanel({
   }
 
   async function handleFile(id: string, file: File) {
-    const content = await file.text();
-    const normalized = normalizeBillText(content);
+    let normalized: string;
+    try {
+      if (file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")) {
+        const pdfText = await extractTextFromPdf(file);
+        normalized = normalizeBillText(pdfText);
+      } else {
+        const content = await file.text();
+        normalized = normalizeBillText(content);
+      }
+    } catch (e) {
+      toast.error("Could not read file. Please try a text export or paste the content manually.");
+      return;
+    }
+
     const issue = getBillTextIssue(normalized);
     if (issue) {
       toast.error(issue);

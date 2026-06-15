@@ -6,11 +6,8 @@ import { parseBillSummary } from "@/lib/parse-bill.functions";
 import type { AssessmentReport } from "@/lib/assessment-types";
 import {
   MAX_BILLS,
-  MAX_BILL_CHARS,
-  MAX_COMBINED_BILL_CHARS,
   MIN_BILLS,
   MIN_SUMMARY_CHARS,
-  clampBillText,
   combineBillSummaries,
   normalizeBillText,
 } from "@/lib/bill-input";
@@ -72,17 +69,7 @@ export function InputPanel({
   async function handleFile(id: string, file: File) {
     const content = await file.text();
     const normalized = normalizeBillText(content);
-    const text = clampBillText(normalized);
-
-    updateBill(id, { text, label: file.name.replace(/\.[^.]+$/, "") });
-
-    if (normalized.length > MAX_BILL_CHARS) {
-      toast.warning(
-        `${file.name} was trimmed to ${MAX_BILL_CHARS.toLocaleString()} characters. Upload a summarized bill period rather than a full raw export.`,
-      );
-      return;
-    }
-
+    updateBill(id, { text: normalized, label: file.name.replace(/\.[^.]+$/, "") });
     toast.success(`Loaded ${file.name}`);
   }
 
@@ -98,12 +85,6 @@ export function InputPanel({
       return;
     }
 
-    if (combined.length > MAX_COMBINED_BILL_CHARS) {
-      toast.error(
-        `The combined input is too large (${combined.length.toLocaleString()} characters). Keep it under ${MAX_COMBINED_BILL_CHARS.toLocaleString()} by pasting summarized billing periods.`,
-      );
-      return;
-    }
 
     setLoading(true);
     try {
@@ -237,14 +218,11 @@ export function InputPanel({
                 onChange={(e) => updateBill(b.id, { text: normalizeBillText(e.target.value) })}
                 placeholder={`Paste bill summary for period ${i + 1}…\n\nExample:\nSep 2025 — total $384.68\n  Elastic Compute Cloud ........ $215.40\n  Simple Storage Service ....... $38.92`}
                 rows={5}
-                maxLength={MAX_BILL_CHARS}
                 className="mt-2 w-full resize-y rounded-md border border-border bg-background px-3 py-2 font-mono text-[12px] leading-relaxed text-foreground outline-none ring-ring/40 placeholder:text-muted-foreground focus:ring-2"
               />
               <div className="mt-1 flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
                 <span>Use a concise bill summary for this period.</span>
-                <span>
-                  {b.text.length.toLocaleString()} / {MAX_BILL_CHARS.toLocaleString()} chars
-                </span>
+                <span>{b.text.length.toLocaleString()} chars</span>
               </div>
             </div>
           );
@@ -253,7 +231,7 @@ export function InputPanel({
 
       <div className="mt-3 flex items-center justify-between">
         <p className="text-xs text-muted-foreground">
-          {bills.length} of {MAX_BILLS} periods · {combined.length.toLocaleString()} / {MAX_COMBINED_BILL_CHARS.toLocaleString()} combined chars
+          {bills.length} of {MAX_BILLS} periods · {combined.length.toLocaleString()} combined chars
         </p>
         <Button
           type="button"

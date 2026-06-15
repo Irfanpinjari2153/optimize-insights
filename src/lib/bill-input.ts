@@ -1,9 +1,9 @@
 export const MIN_BILLS = 3;
 export const MAX_BILLS = 6;
 export const MIN_SUMMARY_CHARS = 20;
-export const SERVER_BILL_TEXT_LIMIT = 300_000;
-export const MAX_BILL_CHARS = 45_000;
-export const MAX_COMBINED_BILL_CHARS = 275_000;
+export const SERVER_BILL_TEXT_LIMIT = Number.MAX_SAFE_INTEGER;
+export const MAX_BILL_CHARS = Number.MAX_SAFE_INTEGER;
+export const MAX_COMBINED_BILL_CHARS = Number.MAX_SAFE_INTEGER;
 
 type BillSummaryInput = {
   label?: string;
@@ -15,7 +15,7 @@ export function normalizeBillText(text: string) {
 }
 
 export function clampBillText(text: string) {
-  return normalizeBillText(text).slice(0, MAX_BILL_CHARS);
+  return normalizeBillText(text);
 }
 
 export function combineBillSummaries(bills: BillSummaryInput[]) {

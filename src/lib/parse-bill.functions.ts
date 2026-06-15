@@ -240,7 +240,7 @@ Produce the assessment now. Return a proper detailed analysis: 10 findings, exac
             { role: "system", content: systemPrompt },
             { role: "user", content: userPrompt },
           ],
-          max_tokens: 8000,
+          max_tokens: 12000,
           tools: [
             {
               type: "function",
@@ -343,6 +343,26 @@ Produce the assessment now. Return a proper detailed analysis: 10 findings, exac
     }
 
     const parsed = typeof args === "string" ? JSON.parse(args) : args;
+
+    const findings = Array.isArray(parsed.findings) ? parsed.findings : [];
+    const shallowFinding = findings.find(
+      (finding: { points?: unknown[]; title?: string }) =>
+        !Array.isArray(finding.points) ||
+        finding.points.length < 5 ||
+        finding.points.some(
+          (point) => typeof point !== "string" || point.trim().split(/\s+/).length < 10,
+        ) ||
+        (typeof finding.title === "string" && finding.title.trim().split(/\s+/).length < 4),
+    );
+
+    if (findings.length < 10 || shallowFinding) {
+      return {
+        ok: false,
+        code: "invalid_response",
+        message:
+          "The AI response was too shallow. Please click Analyze again so it can generate a full detailed assessment.",
+      };
+    }
 
     // Best-effort: stamp ids and a timestamp
     const raw: AssessmentReport = {

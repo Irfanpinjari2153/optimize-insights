@@ -46,7 +46,7 @@ export const parseBillSummary = createServerFn({ method: "POST" })
       };
     }
 
-    const systemPrompt = `You are a Principal Cloud Economist and Well-Architected reviewer (AWS / Azure / GCP) with 15+ years of FinOps, security, and modernization experience. You are producing a deep, consultant-grade assessment that a CIO will read — NOT a generic checklist.
+    const systemPrompt = `You are a Principal Cloud Economist and Well-Architected reviewer (AWS / Azure / GCP). Produce a concise, evidence-based CIO assessment from cloud bill text.
 
 OPERATING PRINCIPLES
 - Evidence first. Quote exact line items, USD amounts, units (GB-mo, vCPU-hr, requests), and percentages from the bill text. If something is not in the text, mark it 'inference' or 'assumption' and say so explicitly.
@@ -56,9 +56,9 @@ OPERATING PRINCIPLES
 - monthlySavings is a realistic USD number (not a percent). Use 0 (or omit) for non-cost findings.
 
 OUTPUT DEPTH REQUIREMENTS
-- 10–14 findings total, distributed across all four categories (cost, security, modernization, governance). Minimum: 4 cost, 2 security, 2 modernization, 2 governance.
-- Each finding: title is a concrete claim (not a topic). 5–7 numbered reasoning points, each a full sentence with numbers/units/citations. assumptions[] lists every unverified premise (2–4 items when evidenceType is inference/assumption). nextAction is a 1–2 sentence directive a platform engineer can execute this sprint (name the console path, IaC resource, or CLI command when possible).
-- executiveBullets: 5–7 punchy, CFO-readable sentences. Lead with the dollar impact and the single biggest risk. No filler.
+- 8 findings total, distributed across all four categories (cost, security, modernization, governance). Minimum: 3 cost, 2 security, 1 modernization, 1 governance.
+- Each finding: title is a concrete claim. 3 numbered reasoning points, each a full sentence with numbers/units/citations where available. assumptions[] lists unverified premises when evidenceType is inference/assumption. nextAction is one directive a platform engineer can execute this sprint.
+- executiveBullets: 4 CFO-readable sentences. Lead with dollar impact and biggest risk. No filler.
 - billingPeriods: include EVERY period present in the bill text with the real label, date range, amount, and a short invoiceFile identifier. Order chronologically.
 - serviceBreakdown: list the top 8–12 services by spend with real USD amounts from the bill. If only one period is shown, use it; otherwise use the most recent.
 - summaryMetrics math: averageSpend = mean of billingPeriods.amount. monthlySavings = sum of per-finding monthlySavings. annualSavings = monthlySavings × 12. savingsPercent = monthlySavings / averageSpend × 100. criticalCount = count of severity='critical'.
@@ -82,7 +82,7 @@ BILL SUMMARY TEXT:
 ${data.billText}
 """
 
-Produce the full deep-dive assessment now. Remember: 10–14 findings, 5–7 reasoning sentences each with cited dollar amounts, explicit assumptions, and an executable nextAction.`;
+Produce the assessment now. Keep output compact: 8 findings, 3 reasoning sentences per finding, explicit assumptions, and one executable nextAction.`;
 
     const schema = {
       type: "object",
@@ -236,7 +236,7 @@ Produce the full deep-dive assessment now. Remember: 10–14 findings, 5–7 rea
             { role: "system", content: systemPrompt },
             { role: "user", content: userPrompt },
           ],
-          max_tokens: 4096,
+          max_tokens: 2400,
           tools: [
             {
               type: "function",

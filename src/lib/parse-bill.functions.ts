@@ -189,19 +189,40 @@ Produce the full deep-dive assessment now. Remember: 10–14 findings, 5–7 rea
       },
     };
 
+    const nvidiaKey = process.env.NVIDIA_API_KEY;
     const geminiKey = process.env.GEMINI_API_KEY;
-    const useGemini = !!geminiKey;
-    const response = await fetch(
-      useGemini
-        ? "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
-        : "https://ai.gateway.lovable.dev/v1/chat/completions",
-      {
+    const provider: "nvidia" | "gemini" | "lovable" = nvidiaKey
+      ? "nvidia"
+      : geminiKey
+        ? "gemini"
+        : "lovable";
+
+    const endpoint =
+      provider === "nvidia"
+        ? "https://integrate.api.nvidia.com/v1/chat/completions"
+        : provider === "gemini"
+          ? "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+          : "https://ai.gateway.lovable.dev/v1/chat/completions";
+
+    const headers: Record<string, string> =
+      provider === "nvidia"
+        ? { "Content-Type": "application/json", Authorization: `Bearer ${nvidiaKey}` }
+        : provider === "gemini"
+          ? { "Content-Type": "application/json", Authorization: `Bearer ${geminiKey}` }
+          : { "Content-Type": "application/json", "Lovable-API-Key": apiKey! };
+
+    const model =
+      provider === "nvidia"
+        ? "meta/llama-3.3-70b-instruct"
+        : provider === "gemini"
+          ? "gemini-2.0-flash"
+          : "google/gemini-3-flash-preview";
+
+    const response = await fetch(endpoint, {
       method: "POST",
-      headers: useGemini
-        ? { "Content-Type": "application/json", Authorization: `Bearer ${geminiKey}` }
-        : { "Content-Type": "application/json", "Lovable-API-Key": apiKey! },
+      headers,
       body: JSON.stringify({
-        model: useGemini ? "gemini-2.0-flash" : "google/gemini-3-flash-preview",
+        model,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },

@@ -38,7 +38,7 @@ export const parseBillSummary = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => ParseInput.parse(input))
   .handler(async ({ data }): Promise<ParseBillSummaryResult> => {
     const apiKey = process.env.LOVABLE_API_KEY;
-    if (!apiKey && !process.env.GEMINI_API_KEY) {
+    if (!apiKey && !process.env.GEMINI_API_KEY && !process.env.NVIDIA_API_KEY) {
       return {
         ok: false,
         code: "not_configured",

@@ -38,7 +38,7 @@ export const parseBillSummary = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => ParseInput.parse(input))
   .handler(async ({ data }): Promise<ParseBillSummaryResult> => {
     const apiKey = process.env.LOVABLE_API_KEY;
-    if (!apiKey && !process.env.GEMINI_API_KEY) {
+    if (!apiKey && !process.env.GEMINI_API_KEY && !process.env.NVIDIA_API_KEY) {
       return {
         ok: false,
         code: "not_configured",
@@ -189,19 +189,40 @@ Produce the full deep-dive assessment now. Remember: 10–14 findings, 5–7 rea
       },
     };
 
+    const nvidiaKey = process.env.NVIDIA_API_KEY;
     const geminiKey = process.env.GEMINI_API_KEY;
-    const useGemini = !!geminiKey;
-    const response = await fetch(
-      useGemini
-        ? "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
-        : "https://ai.gateway.lovable.dev/v1/chat/completions",
-      {
+    const provider: "nvidia" | "gemini" | "lovable" = nvidiaKey
+      ? "nvidia"
+      : geminiKey
+        ? "gemini"
+        : "lovable";
+
+    const endpoint =
+      provider === "nvidia"
+        ? "https://integrate.api.nvidia.com/v1/chat/completions"
+        : provider === "gemini"
+          ? "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+          : "https://ai.gateway.lovable.dev/v1/chat/completions";
+
+    const headers: Record<string, string> =
+      provider === "nvidia"
+        ? { "Content-Type": "application/json", Authorization: `Bearer ${nvidiaKey}` }
+        : provider === "gemini"
+          ? { "Content-Type": "application/json", Authorization: `Bearer ${geminiKey}` }
+          : { "Content-Type": "application/json", "Lovable-API-Key": apiKey! };
+
+    const model =
+      provider === "nvidia"
+        ? "meta/llama-3.3-70b-instruct"
+        : provider === "gemini"
+          ? "gemini-2.0-flash"
+          : "google/gemini-3-flash-preview";
+
+    const response = await fetch(endpoint, {
       method: "POST",
-      headers: useGemini
-        ? { "Content-Type": "application/json", Authorization: `Bearer ${geminiKey}` }
-        : { "Content-Type": "application/json", "Lovable-API-Key": apiKey! },
+      headers,
       body: JSON.stringify({
-        model: useGemini ? "gemini-2.0-flash" : "google/gemini-3-flash-preview",
+        model,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
@@ -222,28 +243,28 @@ Produce the full deep-dive assessment now. Remember: 10–14 findings, 5–7 rea
 
     if (!response.ok) {
       const txt = await response.text();
-      console.error("AI provider error", { provider: useGemini ? "gemini" : "lovable", status: response.status, body: txt });
+      console.error("AI provider error", { provider, status: response.status, body: txt });
       if (response.status === 429) {
         const retryAfterHeader = Number(response.headers.get("retry-after") ?? "60");
         return {
           ok: false,
           code: "rate_limited",
           retryAfterSeconds: Number.isFinite(retryAfterHeader) && retryAfterHeader > 0 ? retryAfterHeader : 60,
-          message: `Rate limit hit on ${useGemini ? "Google AI Studio (free tier: ~15 req/min, 1500/day for gemini-2.0-flash)" : "Lovable AI"}. Wait about 60s and retry.`,
+          message: `Rate limit hit on ${provider}. Wait about 60s and retry.`,
         };
       }
       if (response.status === 402) {
         return {
           ok: false,
           code: "credits_exhausted",
-          message: "AI credits exhausted. Add credits or set GEMINI_API_KEY.",
+          message: "AI credits exhausted. Add credits or configure a provider key.",
         };
       }
       if (response.status === 401 || response.status === 403) {
         return {
           ok: false,
           code: "invalid_key",
-          message: `Invalid ${useGemini ? "GEMINI_API_KEY" : "Lovable"} key. Check the key and try again.`,
+          message: `Invalid ${provider} API key. Check the key and try again.`,
         };
       }
       return {

@@ -4,6 +4,16 @@ import type { AssessmentReport } from "./assessment-types";
 import { MIN_SUMMARY_CHARS, SERVER_BILL_TEXT_LIMIT } from "./bill-input";
 import { normalizeReport } from "./normalize-assessment";
 
+type AiChatPayload = {
+  choices?: Array<{
+    message?: {
+      tool_calls?: Array<{
+        function?: { arguments?: unknown };
+      }>;
+    };
+  }>;
+};
+
 export type ParseBillSummaryResult =
   | {
       ok: true;
@@ -279,7 +289,11 @@ Produce the assessment now. Return a proper detailed analysis: 10 findings, exac
 
     if (!response.ok) {
       const txt = await response.text();
-      console.error("AI provider error", { provider, status: response.status, body: txt });
+      console.error("AI provider error", {
+        provider,
+        status: response.status,
+        body: txt,
+      });
       if (response.status === 524 || response.status === 504 || response.status === 408) {
         return {
           ok: false,
@@ -318,7 +332,7 @@ Produce the assessment now. Return a proper detailed analysis: 10 findings, exac
       };
     }
 
-    let payload: any;
+    let payload: AiChatPayload;
     try {
       payload = await response.json();
     } catch (error) {

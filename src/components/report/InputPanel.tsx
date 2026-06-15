@@ -216,7 +216,7 @@ export function InputPanel({
                   Upload
                   <input
                     type="file"
-                    accept=".txt,.csv,.json,.md,.log"
+                    accept=".txt,.csv,.json,.md,.log,.pdf"
                     className="hidden"
                     onChange={(e) => {
                       const f = e.target.files?.[0];

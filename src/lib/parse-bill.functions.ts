@@ -14,6 +14,32 @@ type AiChatPayload = {
   }>;
 };
 
+const MAX_AI_CONTEXT_CHARS = 24_000;
+
+function compactBillTextForAi(text: string) {
+  const lines = text.split("\n");
+  const important = lines.filter((line) => {
+    const trimmed = line.trim();
+    if (!trimmed) return false;
+    if (trimmed.startsWith("=====")) return true;
+    if (/\$\s?\d|\bUSD\b|total|subtotal|tax|credit/i.test(trimmed)) return true;
+    if (
+      /EC2|Elastic|Compute|S3|Storage|EBS|RDS|Database|Lambda|NAT|VPC|CloudFront|Route 53|KMS|GuardDuty|Security Hub|Config|CloudTrail|Support|Data Transfer|Bandwidth/i.test(
+        trimmed,
+      )
+    ) {
+      return trimmed.length <= 220;
+    }
+    return false;
+  });
+
+  const compacted = important.join("\n");
+  const source = compacted.trim().length >= MIN_SUMMARY_CHARS ? compacted : text;
+  return source.length <= MAX_AI_CONTEXT_CHARS
+    ? source
+    : `${source.slice(0, MAX_AI_CONTEXT_CHARS)}\n…[additional bill lines omitted to keep analysis within request time]`;
+}
+
 export type ParseBillSummaryResult =
   | {
       ok: true;
@@ -65,9 +91,9 @@ OPERATING PRINCIPLES
 - monthlySavings is a realistic USD number (not a percent). Use 0 (or omit) for non-cost findings.
 
 OUTPUT DEPTH REQUIREMENTS
-- 10 findings total, distributed across all four categories (cost, security, modernization, governance). Minimum: 4 cost, 2 security, 2 governance, 1 modernization.
-- Each finding: title is a concrete claim tied to a service or spend pattern. Provide exactly 5 reasoning points, each a full sentence with evidence, calculation, risk, comparison, or implementation logic. Do not use generic reasoning.
-- For cost findings, at least 3 reasoning points must include numeric math from the bill text, such as baseline spend, affected portion, conservative percentage, monthly savings, or annualized impact.
+- 8 findings total, distributed across all four categories (cost, security, modernization, governance). Minimum: 3 cost, 2 security, 1 governance, 1 modernization.
+- Each finding: title is a concrete claim tied to a service or spend pattern. Provide exactly 4 reasoning points, each a full sentence with evidence, calculation, risk, comparison, or implementation logic. Do not use generic reasoning.
+- For cost findings, at least 2 reasoning points must include numeric math from the bill text, such as baseline spend, affected portion, conservative percentage, monthly savings, or annualized impact.
 - For security/governance/modernization findings, explain what the bill proves directly, what is inferred from missing/visible line items, the operational risk, and how to validate it in cloud consoles/telemetry.
 - assumptions[] lists unverified premises when evidenceType is inference/assumption. If evidenceType is direct, assumptions[] may be empty.
 - nextAction is one directive a platform engineer can execute this sprint, including the service, data source, and target change.
@@ -86,16 +112,18 @@ ENUMS
 OUTPUT
 - Emit ONE call to the emit_assessment tool with STRICT JSON. No prose, no markdown, no code fences.`;
 
+    const aiBillText = compactBillTextForAi(data.billText);
+
     const userPrompt = `Account name: ${data.accountName || "Cloud Environment"}
 
-The user has pasted ${data.billText.length.toLocaleString()} characters of cloud bill / cost-explorer text spanning multiple billing periods, separated by lines of '====='. Parse every period.
+The user pasted ${data.billText.length.toLocaleString()} characters of cloud bill / cost-explorer text spanning multiple billing periods. The analysis input below has been compacted to ${aiBillText.length.toLocaleString()} high-signal characters containing period headers, totals, cloud services, units, and USD amounts. Parse every visible period.
 
 BILL SUMMARY TEXT:
 """
-${data.billText}
+${aiBillText}
 """
 
-Produce the assessment now. Return a proper detailed analysis: 10 findings, exactly 5 reasoning sentences per finding, explicit assumptions, service-level evidence, conservative savings math, and one executable nextAction.`;
+Produce the assessment now. Return a proper detailed analysis: 8 findings, exactly 4 reasoning sentences per finding, explicit assumptions, service-level evidence, conservative savings math, and one executable nextAction.`;
 
     const schema = {
       type: "object",
@@ -249,7 +277,7 @@ Produce the assessment now. Return a proper detailed analysis: 10 findings, exac
             { role: "system", content: systemPrompt },
             { role: "user", content: userPrompt },
           ],
-          max_tokens: 12000,
+          max_tokens: 6000,
           tools: [
             {
               type: "function",
@@ -363,14 +391,14 @@ Produce the assessment now. Return a proper detailed analysis: 10 findings, exac
     const shallowFinding = findings.find(
       (finding: { points?: unknown[]; title?: string }) =>
         !Array.isArray(finding.points) ||
-        finding.points.length < 5 ||
+        finding.points.length < 4 ||
         finding.points.some(
           (point) => typeof point !== "string" || point.trim().split(/\s+/).length < 10,
         ) ||
         (typeof finding.title === "string" && finding.title.trim().split(/\s+/).length < 4),
     );
 
-    if (findings.length < 10 || shallowFinding) {
+    if (findings.length < 8 || shallowFinding) {
       return {
         ok: false,
         code: "invalid_response",

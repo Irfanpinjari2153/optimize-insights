@@ -243,28 +243,28 @@ Produce the full deep-dive assessment now. Remember: 10–14 findings, 5–7 rea
 
     if (!response.ok) {
       const txt = await response.text();
-      console.error("AI provider error", { provider: useGemini ? "gemini" : "lovable", status: response.status, body: txt });
+      console.error("AI provider error", { provider, status: response.status, body: txt });
       if (response.status === 429) {
         const retryAfterHeader = Number(response.headers.get("retry-after") ?? "60");
         return {
           ok: false,
           code: "rate_limited",
           retryAfterSeconds: Number.isFinite(retryAfterHeader) && retryAfterHeader > 0 ? retryAfterHeader : 60,
-          message: `Rate limit hit on ${useGemini ? "Google AI Studio (free tier: ~15 req/min, 1500/day for gemini-2.0-flash)" : "Lovable AI"}. Wait about 60s and retry.`,
+          message: `Rate limit hit on ${provider}. Wait about 60s and retry.`,
         };
       }
       if (response.status === 402) {
         return {
           ok: false,
           code: "credits_exhausted",
-          message: "AI credits exhausted. Add credits or set GEMINI_API_KEY.",
+          message: "AI credits exhausted. Add credits or configure a provider key.",
         };
       }
       if (response.status === 401 || response.status === 403) {
         return {
           ok: false,
           code: "invalid_key",
-          message: `Invalid ${useGemini ? "GEMINI_API_KEY" : "Lovable"} key. Check the key and try again.`,
+          message: `Invalid ${provider} API key. Check the key and try again.`,
         };
       }
       return {

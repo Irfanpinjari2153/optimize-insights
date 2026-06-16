@@ -800,9 +800,12 @@ Produce the assessment now. Return a proper detailed analysis: 8 findings, exact
     const toolCall = payload?.choices?.[0]?.message?.tool_calls?.[0];
     const args = toolCall?.function?.arguments;
     if (!args) {
-      console.warn("AI provider returned no tool call; returning deterministic assessment fallback", {
-        provider,
-      });
+      console.warn(
+        "AI provider returned no tool call; returning deterministic assessment fallback",
+        {
+          provider,
+        },
+      );
       return {
         ok: true,
         report: buildDeterministicReport(data.billText, data.accountName),

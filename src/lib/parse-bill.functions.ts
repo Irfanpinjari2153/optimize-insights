@@ -577,7 +577,11 @@ function parseJsonObjectFromText(value: unknown): AssessmentReport | undefined {
 }
 
 function extractAssessmentFromOllamaPayload(payload: OllamaChatPayload) {
-  return parseJsonObjectFromText(payload?.message?.content) ?? parseJsonObjectFromText(payload?.response);
+  return (
+    parseJsonObjectFromText(payload?.choices?.[0]?.message?.content) ??
+    parseJsonObjectFromText(payload?.message?.content) ??
+    parseJsonObjectFromText(payload?.response)
+  );
 }
 
 function reportMatchesBillEvidence(report: AssessmentReport, billText: string) {

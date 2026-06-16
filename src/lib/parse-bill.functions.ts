@@ -568,6 +568,10 @@ function extractAssessmentFromPayload(payload: AiChatPayload) {
   return parseJsonObjectFromText(args) ?? parseJsonObjectFromText(message?.content);
 }
 
+function extractAssessmentFromOllamaPayload(payload: OllamaChatPayload) {
+  return parseJsonObjectFromText(payload?.message?.content) ?? parseJsonObjectFromText(payload?.response);
+}
+
 function reportMatchesBillEvidence(report: AssessmentReport, billText: string) {
   const sections = parseLocalBillSections(billText).filter((section) => section.amount > 0);
   if (!sections.length) return true;

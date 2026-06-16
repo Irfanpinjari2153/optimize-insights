@@ -330,8 +330,6 @@ function buildDeterministicReport(billText: string, accountName?: string): Asses
     Math.max(1, safeSections.length);
 
   const compute = findService(aggregate, ["compute", "elastic compute", "virtual machines"]);
-  const storage = findService(aggregate, ["storage", "block store"]);
-  const network = findService(aggregate, ["nat", "transfer", "cloudfront"]);
   const securityVisible = aggregate.filter((service) =>
     ["guardduty", "security hub", "config", "cloudtrail", "kms"].some((name) =>
       service.service.toLowerCase().includes(name),
@@ -339,11 +337,6 @@ function buildDeterministicReport(billText: string, accountName?: string): Asses
   );
 
   const computeBase = compute?.amount || topService.amount || averageSpend;
-  const storageBase = storage?.amount || Math.max(topService.amount * 0.35, averageSpend * 0.15);
-  const networkBase = network?.amount || Math.max(averageSpend * 0.08, 0);
-  const computeSavings = Math.round(computeBase * 0.25);
-  const storageSavings = Math.round(storageBase * 0.3);
-  const networkSavings = Math.round(networkBase * 0.35);
 
   const trend = safeSections.length >= 2 ? latest.amount - safeSections[0].amount : 0;
   const trendDirection = trend > 0 ? "increased" : trend < 0 ? "decreased" : "remained flat";

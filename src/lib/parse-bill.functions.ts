@@ -369,8 +369,11 @@ function buildDeterministicReport(billText: string, accountName?: string): Asses
         "Billing does not reveal architecture, so migration candidates must be selected from workloads with stable demand and low platform coupling.",
         "Prioritize non-critical stateless services first, then expand to databases or stateful systems after compatibility and performance tests pass.",
       ],
-      assumptions: ["Instance families, runtime architectures, and workload compatibility are not visible in billing text."],
-      nextAction: "Identify the top three steady compute workloads and test right-sizing, autoscaling, or modern instance families in a non-production environment.",
+      assumptions: [
+        "Instance families, runtime architectures, and workload compatibility are not visible in billing text.",
+      ],
+      nextAction:
+        "Identify the top three steady compute workloads and test right-sizing, autoscaling, or modern instance families in a non-production environment.",
     },
     {
       id: "f-8",
@@ -386,7 +389,8 @@ function buildDeterministicReport(billText: string, accountName?: string): Asses
         "Ownership controls should map every large service line to application, environment, team, and lifecycle so waste is routed to the right owner.",
       ],
       assumptions: ["Tagging and cost-category coverage are not included in the pasted summary."],
-      nextAction: "Enforce required cost tags for application, owner, environment, and data classification on the services driving the latest bill.",
+      nextAction:
+        "Enforce required cost tags for application, owner, environment, and data classification on the services driving the latest bill.",
     },
   ];
 
@@ -397,7 +401,9 @@ function buildDeterministicReport(billText: string, accountName?: string): Asses
     invoiceFile: `period-${index + 1}`,
   }));
 
-  const serviceBreakdownSource = latestServices.length ? latestServices : [{ service: "Total cloud spend", amount: latest.amount, evidence: [] }];
+  const serviceBreakdownSource = latestServices.length
+    ? latestServices
+    : [{ service: "Total cloud spend", amount: latest.amount, evidence: [] }];
   const monthlySavings = findings.reduce((sum, finding) => sum + (finding.monthlySavings || 0), 0);
 
   return normalizeReport({
@@ -409,7 +415,8 @@ function buildDeterministicReport(billText: string, accountName?: string): Asses
       averageSpend: Math.round(averageSpend),
       monthlySavings,
       annualSavings: monthlySavings * 12,
-      savingsPercent: averageSpend > 0 ? Math.round((monthlySavings / averageSpend) * 1000) / 10 : 0,
+      savingsPercent:
+        averageSpend > 0 ? Math.round((monthlySavings / averageSpend) * 1000) / 10 : 0,
       criticalCount: findings.filter((finding) => finding.severity === "critical").length,
     },
     executiveBullets: [

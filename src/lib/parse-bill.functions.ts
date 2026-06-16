@@ -313,7 +313,8 @@ function buildDeterministicReport(billText: string, accountName?: string): Asses
         "Create service-owner budgets using the top spend drivers so finance can distinguish planned growth from unmanaged cloud waste.",
       ],
       assumptions: [],
-      nextAction: "Create monthly budget alerts at service-owner level using latest-period service totals and the three-month average as the baseline.",
+      nextAction:
+        "Create monthly budget alerts at service-owner level using latest-period service totals and the three-month average as the baseline.",
     },
     {
       id: "f-5",
@@ -328,8 +329,13 @@ function buildDeterministicReport(billText: string, accountName?: string): Asses
         "The operational risk is that workloads may scale spend while threat detection, configuration drift checks, and audit retention remain incomplete.",
         "Validate coverage in the security consoles by checking enabled regions, protected accounts, finding volume, and log retention configuration.",
       ],
-      assumptions: securityVisible.length ? [] : ["Security services may be free-tier, centrally billed elsewhere, or omitted from the summary."],
-      nextAction: "Verify GuardDuty, Security Hub, Config, CloudTrail, and KMS coverage across every production account and active region this sprint.",
+      assumptions: securityVisible.length
+        ? []
+        : [
+            "Security services may be free-tier, centrally billed elsewhere, or omitted from the summary.",
+          ],
+      nextAction:
+        "Verify GuardDuty, Security Hub, Config, CloudTrail, and KMS coverage across every production account and active region this sprint.",
     },
     {
       id: "f-6",
@@ -345,7 +351,8 @@ function buildDeterministicReport(billText: string, accountName?: string): Asses
         "Validation should compare storage, database, and compute inventories against encryption defaults, key ownership, and centralized audit logging.",
       ],
       assumptions: ["Control-plane configuration is not included in the billing summary."],
-      nextAction: "Run a configuration inventory for encryption, public access, and audit logging on the highest-spend storage, database, and compute services.",
+      nextAction:
+        "Run a configuration inventory for encryption, public access, and audit logging on the highest-spend storage, database, and compute services.",
     },
     {
       id: "f-7",

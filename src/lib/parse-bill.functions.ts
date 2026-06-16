@@ -215,6 +215,103 @@ function findService(services: LocalServiceSpend[], names: string[]) {
   );
 }
 
+function serviceOptimization(serviceName: string) {
+  const lower = serviceName.toLowerCase();
+  if (/compute|ec2|virtual machine|container|kubernetes|fargate/.test(lower)) {
+    return {
+      rate: 0.25,
+      title: `${serviceName} commitment and right-sizing opportunity`,
+      mechanism:
+        "right-size always-on capacity first, then cover the stable baseline with one-year commitments",
+      action:
+        "Export instance or workload utilization for this service, remove idle capacity, and size commitments only to the verified p70 baseline.",
+    };
+  }
+  if (/storage|s3|block store|backup|snapshot/.test(lower)) {
+    return {
+      rate: 0.3,
+      title: `${serviceName} lifecycle and retention cleanup opportunity`,
+      mechanism:
+        "move cold data to lower-cost tiers, delete stale snapshots, and reduce non-production retention after owner approval",
+      action:
+        "Pull age, last-access, and retention data for this storage line, then apply lifecycle rules to confirmed cold or stale data.",
+    };
+  }
+  if (/database|rds|sql|dynamodb|redshift|opensearch|elasticache/.test(lower)) {
+    return {
+      rate: 0.2,
+      title: `${serviceName} capacity and purchase-model review`,
+      mechanism:
+        "validate steady usage, remove over-provisioned capacity, and reserve only the confirmed baseline",
+      action:
+        "Compare database CPU, storage, IOPS, and connection metrics with current class or capacity settings, then right-size before reserving.",
+    };
+  }
+  if (/transfer|nat|bandwidth|cloudfront|load balanc|egress/.test(lower)) {
+    return {
+      rate: 0.35,
+      title: `${serviceName} network path optimization opportunity`,
+      mechanism:
+        "reduce avoidable NAT processing, inter-zone traffic, public egress, and uncached outbound transfer",
+      action:
+        "Use flow logs and cost usage detail to identify top traffic paths, then add private endpoints, caching, or same-zone routing where applicable.",
+    };
+  }
+  if (/cloudwatch|logs|monitoring|config|cloudtrail|security|guardduty|waf|kms/.test(lower)) {
+    return {
+      rate: 0.15,
+      title: `${serviceName} telemetry volume and retention review`,
+      mechanism:
+        "separate required security telemetry from noisy debug data and tune retention without weakening audit coverage",
+      action:
+        "Review ingestion volume, metric cardinality, and retention settings for this telemetry service, then reduce noisy non-audit data.",
+    };
+  }
+  return {
+    rate: 0.12,
+    title: `${serviceName} owner-level cost validation`,
+    mechanism:
+      "confirm the business owner, usage driver, and SKU-level detail before applying conservative optimization targets",
+    action:
+      "Open the service cost detail for this line item, assign an owner, and validate the specific usage driver causing the charge.",
+  };
+}
+
+function buildServiceCostFinding(
+  service: LocalServiceSpend,
+  index: number,
+  latestAmount: number,
+  averageSpend: number,
+): Finding {
+  const optimization = serviceOptimization(service.service);
+  const savings = Math.min(service.amount, Math.round(service.amount * optimization.rate));
+  const share = latestAmount > 0 ? Math.round((service.amount / latestAmount) * 1000) / 10 : 0;
+  const evidence = service.evidence[0]
+    ? `The bill line evidence includes "${service.evidence[0]}".`
+    : `The parsed latest-period service amount is ${formatUsd(service.amount)}.`;
+
+  return {
+    id: `f-${index + 1}`,
+    title: optimization.title,
+    category: "cost",
+    severity: share >= 35 || service.amount > averageSpend * 0.35 ? "high" : "medium",
+    monthlySavings: savings,
+    annualSavings: savings * 12,
+    confidence: service.evidence.length ? "medium" : "low",
+    evidenceType: service.evidence.length ? "direct" : "inference",
+    points: [
+      `${service.service} is ${formatUsd(service.amount)} in the latest visible period, representing ${share}% of that period's ${formatUsd(latestAmount)} total.`,
+      `${evidence} A conservative ${Math.round(optimization.rate * 100)}% improvement gives ${formatUsd(service.amount)} × ${Math.round(optimization.rate * 100)}% = about ${formatUsd(savings)} per month, capped below the service spend.`,
+      `The recommended mechanism is to ${optimization.mechanism}, because the bill proves spend but not utilization or owner intent.`,
+      `Annualized impact is ${formatUsd(savings)} × 12 = ${formatUsd(savings * 12)}, subject to validating SKU, region, and production-safety constraints before changes.`,
+    ],
+    assumptions: [
+      "The billing summary does not include utilization, SKU-level commitment coverage, or workload owner approval.",
+    ],
+    nextAction: optimization.action,
+  };
+}
+
 function buildDeterministicReport(billText: string, accountName?: string): AssessmentReport {
   const sections = parseLocalBillSections(billText).filter((section) => section.content.trim());
   const safeSections = sections.length

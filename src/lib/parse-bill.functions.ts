@@ -793,7 +793,7 @@ Produce the assessment now. Return a proper detailed analysis: 8 findings, exact
         body: JSON.stringify({
           model: ollamaModel,
           stream: false,
-          format: "json",
+          format: schema,
           messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: userPrompt },
@@ -929,7 +929,7 @@ Produce the assessment now. Return a proper detailed analysis: 8 findings, exact
 
     if (findings.length < 8 || shallowFinding) {
       console.warn("AI response was shallow; returning deterministic assessment fallback", {
-        provider,
+        model: ollamaModel,
         findings: findings.length,
       });
       return {
@@ -940,7 +940,7 @@ Produce the assessment now. Return a proper detailed analysis: 8 findings, exact
 
     if (!reportMatchesBillEvidence(parsed, data.billText)) {
       console.warn("AI response did not match bill totals; returning bill-derived fallback", {
-        provider,
+        model: ollamaModel,
       });
       return {
         ok: true,

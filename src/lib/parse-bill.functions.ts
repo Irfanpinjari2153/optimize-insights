@@ -152,9 +152,7 @@ function extractSectionTotal(content: string, services: LocalServiceSpend[]) {
     const line = rawLine.trim();
     if (/\b(tax|credit|refund|payment|discount|subtotal)\b/i.test(line)) continue;
     if (
-      /\b(grand total|invoice total|amount due|total charges|total billed|bill total)\b/i.test(
-        line,
-      )
+      /\b(grand total|invoice total|amount due|total charges|total billed|bill total)\b/i.test(line)
     ) {
       preferredTotalCandidates.push(...getLineAmounts(line));
     } else if (/^\s*total\b|\btotal\s*$/i.test(line)) {

@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import type { AssessmentReport } from "./assessment-types";
+import type { AssessmentReport, Finding } from "./assessment-types";
 import { MIN_SUMMARY_CHARS, SERVER_BILL_TEXT_LIMIT } from "./bill-input";
 import { normalizeReport } from "./normalize-assessment";
 
@@ -797,7 +797,7 @@ Produce the assessment now. Return a proper detailed analysis: 8 findings, exact
     const raw: AssessmentReport = {
       ...parsed,
       generatedAt: new Date().toISOString(),
-      findings: (parsed.findings || []).map((f: { id?: string }, i: number) => ({
+      findings: (parsed.findings || []).map((f: Finding, i: number) => ({
         ...f,
         id: f.id || `f-${i + 1}`,
       })),

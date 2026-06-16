@@ -13,11 +13,29 @@ type OllamaChatPayload = {
 const MAX_AI_CONTEXT_CHARS = 14_000;
 const OLLAMA_PROVIDER_TIMEOUT_MS = 45_000;
 
-function buildOllamaChatEndpoint(baseUrl: string) {
-  const normalized = baseUrl.replace(/\/+$/, "");
-  if (/\/api\/chat$/i.test(normalized)) return normalized;
-  if (/\/api$/i.test(normalized)) return `${normalized}/chat`;
-  return `${normalized}/api/chat`;
+function buildOllamaChatEndpoints(baseUrl: string) {
+  const normalized = baseUrl.trim().replace(/\/+$/, "");
+  const candidates: string[] = [];
+
+  try {
+    const url = new URL(normalized);
+    if (url.hostname === "ollama.com") candidates.push(`${url.origin}/api/chat`);
+  } catch {
+    // Fall through to string-based endpoint handling below.
+  }
+
+  if (/\/api\/chat$/i.test(normalized)) candidates.push(normalized);
+  else if (/\/api$/i.test(normalized)) candidates.push(`${normalized}/chat`);
+  else candidates.push(`${normalized}/api/chat`);
+
+  try {
+    const url = new URL(normalized);
+    candidates.push(`${url.origin}/api/chat`);
+  } catch {
+    // Ignore invalid URL fallbacks; the fetch path will surface the error.
+  }
+
+  return [...new Set(candidates)];
 }
 
 type LocalServiceSpend = {
@@ -767,29 +785,40 @@ Produce the assessment now. Return a proper detailed analysis: 8 findings, exact
       },
     };
 
-    const endpoint = buildOllamaChatEndpoint(ollamaBaseUrl);
+    const endpoints = buildOllamaChatEndpoints(ollamaBaseUrl);
+    let endpoint = endpoints[0] ?? ollamaBaseUrl;
     const headers: Record<string, string> = { "Content-Type": "application/json" };
     if (ollamaApiKey) headers.Authorization = `Bearer ${ollamaApiKey}`;
 
-    let response: Response;
+    let response: Response | undefined;
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), OLLAMA_PROVIDER_TIMEOUT_MS);
     try {
-      response = await fetch(endpoint, {
-        method: "POST",
-        headers,
-        signal: controller.signal,
-        body: JSON.stringify({
+      for (const candidateEndpoint of endpoints) {
+        endpoint = candidateEndpoint;
+        response = await fetch(endpoint, {
+          method: "POST",
+          headers,
+          signal: controller.signal,
+          body: JSON.stringify({
+            model: ollamaModel,
+            stream: false,
+            format: schema,
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: userPrompt },
+            ],
+            options: { temperature: 0.1, num_ctx: 16_384 },
+          }),
+        });
+        if (response.ok || response.status !== 404) break;
+
+        console.warn("Ollama endpoint returned 404; trying fallback endpoint", {
           model: ollamaModel,
-          stream: false,
-          format: schema,
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userPrompt },
-          ],
-          options: { temperature: 0.1, num_ctx: 16_384 },
-        }),
-      });
+          endpoint,
+          body: (await response.clone().text()).slice(0, 240),
+        });
+      }
     } catch (error) {
       if (error instanceof Error && error.name === "AbortError") {
         console.warn("Ollama timed out; returning deterministic assessment fallback", {
@@ -817,6 +846,14 @@ Produce the assessment now. Return a proper detailed analysis: 8 findings, exact
       clearTimeout(timeoutId);
     }
 
+    if (!response) {
+      return {
+        ok: false,
+        code: "request_failed",
+        message: "Ollama could not be reached from the backend. Check the configured endpoint.",
+      };
+    }
+
     if (!response.ok) {
       const txt = await response.text();
       console.error("Ollama provider error", {
@@ -828,6 +865,16 @@ Produce the assessment now. Return a proper detailed analysis: 8 findings, exact
         console.warn("Ollama gateway timeout; returning deterministic assessment fallback", {
           model: ollamaModel,
           status: response.status,
+        });
+        return {
+          ok: true,
+          report: buildDeterministicReport(data.billText, data.accountName),
+        };
+      }
+      if (response.status === 404) {
+        console.warn("Ollama endpoint returned 404 after fallbacks; returning deterministic assessment fallback", {
+          model: ollamaModel,
+          endpoint,
         });
         return {
           ok: true,

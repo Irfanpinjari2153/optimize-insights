@@ -32,10 +32,22 @@ type LocalBillSection = {
 };
 
 const SERVICE_PATTERNS: Array<{ service: string; pattern: RegExp }> = [
-  { service: "Elastic Compute Cloud", pattern: /\b(EC2|Elastic Compute|Compute Cloud|Compute Engine|Virtual Machines)\b/i },
-  { service: "Simple Storage Service", pattern: /\b(S3|Simple Storage|Object Storage|Cloud Storage|Blob Storage)\b/i },
-  { service: "Elastic Block Store", pattern: /\b(EBS|Elastic Block|Persistent Disk|Managed Disks)\b/i },
-  { service: "Relational Database Service", pattern: /\b(RDS|Relational Database|Cloud SQL|Azure SQL|Database)\b/i },
+  {
+    service: "Elastic Compute Cloud",
+    pattern: /\b(EC2|Elastic Compute|Compute Cloud|Compute Engine|Virtual Machines)\b/i,
+  },
+  {
+    service: "Simple Storage Service",
+    pattern: /\b(S3|Simple Storage|Object Storage|Cloud Storage|Blob Storage)\b/i,
+  },
+  {
+    service: "Elastic Block Store",
+    pattern: /\b(EBS|Elastic Block|Persistent Disk|Managed Disks)\b/i,
+  },
+  {
+    service: "Relational Database Service",
+    pattern: /\b(RDS|Relational Database|Cloud SQL|Azure SQL|Database)\b/i,
+  },
   { service: "Lambda", pattern: /\b(Lambda|Functions|Cloud Functions)\b/i },
   { service: "NAT Gateway", pattern: /\b(NAT Gateway|NAT)\b/i },
   { service: "Data Transfer", pattern: /\b(Data Transfer|Bandwidth|Inter-AZ|Egress)\b/i },
@@ -61,7 +73,10 @@ function getLineAmounts(line: string) {
   const usdMatches = line.matchAll(/\bUSD\s*([0-9][\d,]*(?:\.\d{1,2})?)/gi);
   for (const match of usdMatches) amounts.push(Number(match[1].replace(/,/g, "")));
 
-  if (!amounts.length && /total|charges|EC2|S3|Storage|Compute|Database|Transfer|Support/i.test(line)) {
+  if (
+    !amounts.length &&
+    /total|charges|EC2|S3|Storage|Compute|Database|Transfer|Support/i.test(line)
+  ) {
     const trailing = line.match(/(?:^|\s)([0-9][\d,]*\.\d{2})\s*$/);
     if (trailing) amounts.push(Number(trailing[1].replace(/,/g, "")));
   }

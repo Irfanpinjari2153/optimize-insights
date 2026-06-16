@@ -14,7 +14,8 @@ type AiChatPayload = {
   }>;
 };
 
-const MAX_AI_CONTEXT_CHARS = 24_000;
+const MAX_AI_CONTEXT_CHARS = 14_000;
+const AI_PROVIDER_TIMEOUT_MS = 12_000;
 
 type LocalServiceSpend = {
   service: string;
@@ -631,7 +632,7 @@ Produce the assessment now. Return a proper detailed analysis: 8 findings, exact
 
     let response: Response;
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 45_000);
+    const timeoutId = setTimeout(() => controller.abort(), AI_PROVIDER_TIMEOUT_MS);
     try {
       response = await fetch(endpoint, {
         method: "POST",
@@ -643,7 +644,7 @@ Produce the assessment now. Return a proper detailed analysis: 8 findings, exact
             { role: "system", content: systemPrompt },
             { role: "user", content: userPrompt },
           ],
-          max_tokens: 6000,
+          max_tokens: 4200,
           tools: [
             {
               type: "function",

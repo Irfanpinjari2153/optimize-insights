@@ -7,7 +7,8 @@ import { normalizeReport } from "./normalize-assessment";
 type OllamaChatPayload = {
   message?: { content?: unknown };
   response?: unknown;
-  error?: string;
+  error?: string | { message?: string };
+  choices?: Array<{ message?: { content?: unknown } }>;
 };
 
 const MAX_AI_CONTEXT_CHARS = 14_000;

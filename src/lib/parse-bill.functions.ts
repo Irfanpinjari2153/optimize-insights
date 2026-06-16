@@ -350,71 +350,17 @@ function buildDeterministicReport(billText: string, accountName?: string): Asses
   const visibleSecurityText = securityVisible.length
     ? securityVisible.map((service) => `${service.service} ${formatUsd(service.amount)}`).join(", ")
     : "no visible GuardDuty, Security Hub, Config, CloudTrail, or KMS line items";
+  const costFindingServices = (latestServices.length ? latestServices : aggregate)
+    .filter((service) => service.amount > 0)
+    .slice(0, 3);
+  const costFindings = (costFindingServices.length ? costFindingServices : [topService]).map(
+    (service, index) => buildServiceCostFinding(service, index, latest.amount, averageSpend),
+  );
 
   const findings: AssessmentReport["findings"] = [
+    ...costFindings,
     {
-      id: "f-1",
-      title: "Compute commitment coverage is likely underused",
-      category: "cost",
-      severity: computeBase > averageSpend * 0.35 ? "high" : "medium",
-      monthlySavings: computeSavings,
-      annualSavings: computeSavings * 12,
-      confidence: compute ? "medium" : "low",
-      evidenceType: compute ? "inference" : "assumption",
-      points: [
-        `The visible compute baseline is ${formatUsd(computeBase)}, using ${compute?.service || topService.service} as the spend evidence from the provided bill text.`,
-        `A conservative 25% commitment or rightsizing target gives ${formatUsd(computeBase)} × 25% = about ${formatUsd(computeSavings)} monthly savings.`,
-        "The bill proves recurring spend but does not include utilization, so CPU, memory, and reservation coverage must be validated before purchase.",
-        "Start with always-on production instances and stable database nodes, then apply Savings Plans or reservations only after seven-day utilization review.",
-      ],
-      assumptions: compute
-        ? ["Compute utilization and commitment coverage are not visible in billing text."]
-        : ["The largest visible service is being used as the compute optimization proxy."],
-      nextAction:
-        "Export compute utilization and commitment coverage for the latest month, then right-size idle resources before buying one-year commitments.",
-    },
-    {
-      id: "f-2",
-      title: "Storage lifecycle tiering has measurable savings potential",
-      category: "cost",
-      severity: storageBase > averageSpend * 0.2 ? "high" : "medium",
-      monthlySavings: storageSavings,
-      annualSavings: storageSavings * 12,
-      confidence: storage ? "medium" : "low",
-      evidenceType: storage ? "inference" : "assumption",
-      points: [
-        `The storage optimization baseline is ${formatUsd(storageBase)}, taken from ${storage?.service || "estimated storage share of the latest bill"}.`,
-        `A conservative 30% lifecycle target gives ${formatUsd(storageBase)} × 30% = about ${formatUsd(storageSavings)} monthly savings.`,
-        "The invoice text proves storage spend but not object age, access frequency, snapshot age, or backup retention policy.",
-        "Apply lifecycle rules only to cold objects, stale snapshots, and non-production backups after confirming restore requirements with application owners.",
-      ],
-      assumptions: [
-        "Detailed object access patterns and snapshot ages are not included in the billing summary.",
-      ],
-      nextAction:
-        "Pull S3/EBS/storage inventory with last-access and snapshot-age fields, then move confirmed cold data to lower-cost tiers.",
-    },
-    {
-      id: "f-3",
-      title: "Network transfer charges need architecture review",
-      category: "cost",
-      severity: networkBase > averageSpend * 0.12 ? "high" : "medium",
-      monthlySavings: networkSavings,
-      annualSavings: networkSavings * 12,
-      confidence: network ? "medium" : "low",
-      evidenceType: network ? "inference" : "assumption",
-      points: [
-        `The network baseline is ${formatUsd(networkBase)}, using ${network?.service || "a conservative share of monthly spend"} as the review target.`,
-        `Reducing avoidable routing, NAT, or egress by 35% gives ${formatUsd(networkBase)} × 35% = about ${formatUsd(networkSavings)} monthly savings.`,
-        "Billing confirms the spend pattern but not the traffic paths, so flow logs and endpoint usage must validate the actual source.",
-        "Highest-priority checks are NAT Gateway processing, inter-zone transfer, public egress, and missing private endpoints for managed services.",
-      ],
-      assumptions: ["Traffic path details are not available in the pasted billing text."],
-      nextAction:
-        "Review VPC flow logs, NAT metrics, and endpoint coverage for the latest period, then remove avoidable cross-zone and public egress paths.",
-    },
-    {
-      id: "f-4",
+      id: `f-${costFindings.length + 1}`,
       title: "Monthly spend trend needs active forecasting",
       category: "governance",
       severity: Math.abs(trend) > averageSpend * 0.15 ? "high" : "medium",

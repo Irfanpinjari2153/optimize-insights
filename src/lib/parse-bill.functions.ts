@@ -871,6 +871,16 @@ Produce the assessment now. Return a proper detailed analysis: 8 findings, exact
           report: buildDeterministicReport(data.billText, data.accountName),
         };
       }
+      if (response.status === 404) {
+        console.warn("Ollama endpoint returned 404 after fallbacks; returning deterministic assessment fallback", {
+          model: ollamaModel,
+          endpoint,
+        });
+        return {
+          ok: true,
+          report: buildDeterministicReport(data.billText, data.accountName),
+        };
+      }
       if (response.status === 429) {
         const retryAfterHeader = Number(response.headers.get("retry-after") ?? "60");
         return {

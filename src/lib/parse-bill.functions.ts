@@ -617,12 +617,15 @@ const ParseInput = z.object({
 export const parseBillSummary = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => ParseInput.parse(input))
   .handler(async ({ data }): Promise<ParseBillSummaryResult> => {
-    const apiKey = process.env.LOVABLE_API_KEY;
-    if (!apiKey && !process.env.GEMINI_API_KEY && !process.env.NVIDIA_API_KEY) {
+    const ollamaBaseUrl = process.env.OLLAMA_BASE_URL?.replace(/\/+$/, "");
+    const ollamaModel = process.env.OLLAMA_MODEL || "llama3.1:8b";
+    const ollamaApiKey = process.env.OLLAMA_API_KEY;
+    if (!ollamaBaseUrl) {
       return {
         ok: false,
         code: "not_configured",
-        message: "AI service is not configured. Please contact support.",
+        message:
+          "Ollama is not configured. Add OLLAMA_BASE_URL as a backend secret pointing to a reachable Ollama server.",
       };
     }
 
@@ -655,7 +658,7 @@ ENUMS
 - evidenceType: direct | inference | assumption
 
 OUTPUT
-- Emit ONE call to the emit_assessment tool with STRICT JSON. No prose, no markdown, no code fences.`;
+- Return one STRICT JSON object matching the requested report schema. No prose, no markdown, no code fences.`;
 
     const aiBillText = compactBillTextForAi(data.billText);
 

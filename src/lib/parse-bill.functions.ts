@@ -177,9 +177,15 @@ function aggregateServices(sections: LocalBillSection[]) {
   const grouped = new Map<string, LocalServiceSpend>();
   for (const section of sections) {
     for (const service of section.services) {
-      const existing = grouped.get(service.service) ?? { service: service.service, amount: 0, evidence: [] };
+      const existing = grouped.get(service.service) ?? {
+        service: service.service,
+        amount: 0,
+        evidence: [],
+      };
       existing.amount += service.amount;
-      existing.evidence.push(...service.evidence.slice(0, Math.max(0, 3 - existing.evidence.length)));
+      existing.evidence.push(
+        ...service.evidence.slice(0, Math.max(0, 3 - existing.evidence.length)),
+      );
       grouped.set(service.service, existing);
     }
   }
@@ -187,18 +193,27 @@ function aggregateServices(sections: LocalBillSection[]) {
 }
 
 function findService(services: LocalServiceSpend[], names: string[]) {
-  return services.find((service) => names.some((name) => service.service.toLowerCase().includes(name)));
+  return services.find((service) =>
+    names.some((name) => service.service.toLowerCase().includes(name)),
+  );
 }
 
 function buildDeterministicReport(billText: string, accountName?: string): AssessmentReport {
   const sections = parseLocalBillSections(billText).filter((section) => section.content.trim());
-  const safeSections = sections.length ? sections : parseLocalBillSections("Total cloud spend $0.00");
+  const safeSections = sections.length
+    ? sections
+    : parseLocalBillSections("Total cloud spend $0.00");
   const latest = safeSections.at(-1) ?? safeSections[0];
   const aggregate = aggregateServices(safeSections);
   const latestServices = latest.services.length ? latest.services : aggregate;
-  const topService = latestServices[0] ?? { service: "Total cloud spend", amount: latest.amount, evidence: [] };
+  const topService = latestServices[0] ?? {
+    service: "Total cloud spend",
+    amount: latest.amount,
+    evidence: [],
+  };
   const averageSpend =
-    safeSections.reduce((sum, section) => sum + section.amount, 0) / Math.max(1, safeSections.length);
+    safeSections.reduce((sum, section) => sum + section.amount, 0) /
+    Math.max(1, safeSections.length);
 
   const compute = findService(aggregate, ["compute", "elastic compute", "virtual machines"]);
   const storage = findService(aggregate, ["storage", "block store"]);

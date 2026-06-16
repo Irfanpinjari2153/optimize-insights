@@ -143,14 +143,19 @@ function extractServices(content: string) {
 }
 
 function extractSectionTotal(content: string, services: LocalServiceSpend[]) {
+  const preferredTotalCandidates: number[] = [];
   const totalCandidates: number[] = [];
   for (const rawLine of content.split("\n")) {
     const line = rawLine.trim();
-    if (/\b(grand total|invoice total|amount due|total charges|total)\b/i.test(line)) {
+    if (/\b(tax|credit|refund|payment|discount|subtotal)\b/i.test(line)) continue;
+    if (/\b(grand total|invoice total|amount due|total charges|total billed|bill total)\b/i.test(line)) {
+      preferredTotalCandidates.push(...getLineAmounts(line));
+    } else if (/^\s*total\b|\btotal\s*$/i.test(line)) {
       totalCandidates.push(...getLineAmounts(line));
     }
   }
-  if (totalCandidates.length) return totalCandidates.at(-1) ?? 0;
+  if (preferredTotalCandidates.length) return Math.max(...preferredTotalCandidates);
+  if (totalCandidates.length) return Math.max(...totalCandidates);
   const serviceTotal = services.reduce((sum, service) => sum + service.amount, 0);
   if (serviceTotal > 0) return serviceTotal;
   const allAmounts = content.split("\n").flatMap(getLineAmounts);

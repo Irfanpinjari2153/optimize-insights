@@ -629,15 +629,19 @@ const ParseInput = z.object({
 export const parseBillSummary = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => ParseInput.parse(input))
   .handler(async ({ data }): Promise<ParseBillSummaryResult> => {
+    const lovableApiKey = process.env.LOVABLE_API_KEY;
     const ollamaBaseUrl = process.env.OLLAMA_BASE_URL?.replace(/\/+$/, "");
-    const ollamaModel = process.env.OLLAMA_MODEL || "llama3.2";
     const ollamaApiKey = process.env.OLLAMA_API_KEY;
-    if (!ollamaBaseUrl) {
+    const useLovableGateway = Boolean(lovableApiKey);
+    const ollamaModel = useLovableGateway
+      ? process.env.LOVABLE_AI_MODEL || "google/gemini-2.5-flash"
+      : process.env.OLLAMA_MODEL || "llama3.2";
+    if (!useLovableGateway && !ollamaBaseUrl) {
       return {
         ok: false,
         code: "not_configured",
         message:
-          "Ollama is not configured. Add OLLAMA_BASE_URL as a backend secret pointing to a reachable Ollama server.",
+          "AI provider is not configured. Enable Lovable AI (LOVABLE_API_KEY) or set OLLAMA_BASE_URL.",
       };
     }
 

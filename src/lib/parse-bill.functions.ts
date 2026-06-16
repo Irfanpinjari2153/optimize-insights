@@ -13,6 +13,13 @@ type OllamaChatPayload = {
 const MAX_AI_CONTEXT_CHARS = 14_000;
 const OLLAMA_PROVIDER_TIMEOUT_MS = 45_000;
 
+function buildOllamaChatEndpoint(baseUrl: string) {
+  const normalized = baseUrl.replace(/\/+$/, "");
+  if (/\/api\/chat$/i.test(normalized)) return normalized;
+  if (/\/api$/i.test(normalized)) return `${normalized}/chat`;
+  return `${normalized}/api/chat`;
+}
+
 type LocalServiceSpend = {
   service: string;
   amount: number;
@@ -600,7 +607,7 @@ export const parseBillSummary = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => ParseInput.parse(input))
   .handler(async ({ data }): Promise<ParseBillSummaryResult> => {
     const ollamaBaseUrl = process.env.OLLAMA_BASE_URL?.replace(/\/+$/, "");
-    const ollamaModel = process.env.OLLAMA_MODEL || "llama3.1:8b";
+    const ollamaModel = process.env.OLLAMA_MODEL || "llama3.2";
     const ollamaApiKey = process.env.OLLAMA_API_KEY;
     if (!ollamaBaseUrl) {
       return {
@@ -760,7 +767,7 @@ Produce the assessment now. Return a proper detailed analysis: 8 findings, exact
       },
     };
 
-    const endpoint = `${ollamaBaseUrl}/api/chat`;
+    const endpoint = buildOllamaChatEndpoint(ollamaBaseUrl);
     const headers: Record<string, string> = { "Content-Type": "application/json" };
     if (ollamaApiKey) headers.Authorization = `Bearer ${ollamaApiKey}`;
 

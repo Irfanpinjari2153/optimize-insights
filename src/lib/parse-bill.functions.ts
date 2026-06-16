@@ -794,10 +794,34 @@ Produce the assessment now. Return a proper detailed analysis: 8 findings, exact
       },
     };
 
-    const endpoints = buildOllamaChatEndpoints(ollamaBaseUrl);
-    let endpoint = endpoints[0] ?? ollamaBaseUrl;
+    const endpoints = useLovableGateway
+      ? ["https://ai.gateway.lovable.dev/v1/chat/completions"]
+      : buildOllamaChatEndpoints(ollamaBaseUrl ?? "");
+    let endpoint = endpoints[0] ?? ollamaBaseUrl ?? "";
     const headers: Record<string, string> = { "Content-Type": "application/json" };
-    if (ollamaApiKey) headers.Authorization = `Bearer ${ollamaApiKey}`;
+    if (useLovableGateway) headers.Authorization = `Bearer ${lovableApiKey}`;
+    else if (ollamaApiKey) headers.Authorization = `Bearer ${ollamaApiKey}`;
+
+    const requestBody = useLovableGateway
+      ? JSON.stringify({
+          model: ollamaModel,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt },
+          ],
+          response_format: { type: "json_object" },
+          temperature: 0.1,
+        })
+      : JSON.stringify({
+          model: ollamaModel,
+          stream: false,
+          format: schema,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt },
+          ],
+          options: { temperature: 0.1, num_ctx: 16_384 },
+        });
 
     let response: Response | undefined;
     const controller = new AbortController();
@@ -809,16 +833,7 @@ Produce the assessment now. Return a proper detailed analysis: 8 findings, exact
           method: "POST",
           headers,
           signal: controller.signal,
-          body: JSON.stringify({
-            model: ollamaModel,
-            stream: false,
-            format: schema,
-            messages: [
-              { role: "system", content: systemPrompt },
-              { role: "user", content: userPrompt },
-            ],
-            options: { temperature: 0.1, num_ctx: 16_384 },
-          }),
+          body: requestBody,
         });
         if (response.ok || response.status !== 404) break;
 

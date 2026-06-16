@@ -892,28 +892,10 @@ Produce the assessment now. Return a proper detailed analysis: 8 findings, exact
         report: buildDeterministicReport(data.billText, data.accountName),
       };
     }
-    const toolCall = payload?.choices?.[0]?.message?.tool_calls?.[0];
-    const args = toolCall?.function?.arguments;
-    if (!args) {
-      console.warn(
-        "AI provider returned no tool call; returning deterministic assessment fallback",
-        {
-          provider,
-        },
-      );
-      return {
-        ok: true,
-        report: buildDeterministicReport(data.billText, data.accountName),
-      };
-    }
-
-    let parsed: AssessmentReport;
-    try {
-      parsed = typeof args === "string" ? JSON.parse(args) : (args as AssessmentReport);
-    } catch (error) {
-      console.error("AI provider returned malformed tool arguments", {
+    const parsed = extractAssessmentFromPayload(payload);
+    if (!parsed) {
+      console.warn("AI provider returned no parseable assessment; returning bill-derived fallback", {
         provider,
-        error: error instanceof Error ? error.message : String(error),
       });
       return {
         ok: true,

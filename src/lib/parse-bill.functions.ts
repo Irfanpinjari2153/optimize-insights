@@ -500,7 +500,7 @@ function compactBillTextForAi(text: string) {
     if (trimmed.startsWith("=====")) return true;
     if (/\$\s?\d|\bUSD\b|total|subtotal|tax|credit/i.test(trimmed)) return true;
     if (
-      /EC2|Elastic|Compute|S3|Storage|EBS|RDS|Database|Lambda|NAT|VPC|CloudFront|Route 53|KMS|GuardDuty|Security Hub|Config|CloudTrail|Support|Data Transfer|Bandwidth/i.test(
+      /EC2|Elastic|Compute|S3|Storage|EBS|RDS|Database|DynamoDB|Lambda|NAT|VPC|CloudFront|CloudWatch|Route 53|KMS|GuardDuty|Security Hub|Config|CloudTrail|Support|Data Transfer|Bandwidth|ECS|EKS|Fargate|Load Balanc|WAF|Backup|Secrets|Athena|Glue|Redshift|SageMaker|Bedrock/i.test(
         trimmed,
       )
     ) {
@@ -514,6 +514,43 @@ function compactBillTextForAi(text: string) {
   return source.length <= MAX_AI_CONTEXT_CHARS
     ? source
     : `${source.slice(0, MAX_AI_CONTEXT_CHARS)}\n…[additional bill lines omitted to keep analysis within request time]`;
+}
+
+function parseJsonObjectFromText(value: unknown): AssessmentReport | undefined {
+  if (!value) return undefined;
+  if (typeof value === "object" && !Array.isArray(value)) return value as AssessmentReport;
+
+  const text = Array.isArray(value)
+    ? value
+        .map((part) => {
+          if (typeof part === "string") return part;
+          if (part && typeof part === "object" && "text" in part) {
+            const textValue = (part as { text?: unknown }).text;
+            return typeof textValue === "string" ? textValue : "";
+          }
+          return "";
+        })
+        .join("\n")
+    : typeof value === "string"
+      ? value
+      : "";
+
+  const cleaned = text.replace(/```(?:json)?/gi, "").replace(/```/g, "").trim();
+  const start = cleaned.indexOf("{");
+  const end = cleaned.lastIndexOf("}");
+  if (start < 0 || end <= start) return undefined;
+
+  try {
+    return JSON.parse(cleaned.slice(start, end + 1)) as AssessmentReport;
+  } catch {
+    return undefined;
+  }
+}
+
+function extractAssessmentFromPayload(payload: AiChatPayload) {
+  const message = payload?.choices?.[0]?.message;
+  const args = message?.tool_calls?.[0]?.function?.arguments;
+  return parseJsonObjectFromText(args) ?? parseJsonObjectFromText(message?.content);
 }
 
 export type ParseBillSummaryResult =

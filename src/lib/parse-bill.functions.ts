@@ -7,6 +7,7 @@ import { normalizeReport } from "./normalize-assessment";
 type AiChatPayload = {
   choices?: Array<{
     message?: {
+      content?: unknown;
       tool_calls?: Array<{
         function?: { arguments?: unknown };
       }>;
@@ -15,7 +16,7 @@ type AiChatPayload = {
 };
 
 const MAX_AI_CONTEXT_CHARS = 14_000;
-const AI_PROVIDER_TIMEOUT_MS = 12_000;
+const AI_PROVIDER_TIMEOUT_MS = 18_000;
 
 type LocalServiceSpend = {
   service: string;
@@ -52,6 +53,22 @@ const SERVICE_PATTERNS: Array<{ service: string; pattern: RegExp }> = [
   { service: "NAT Gateway", pattern: /\b(NAT Gateway|NAT)\b/i },
   { service: "Data Transfer", pattern: /\b(Data Transfer|Bandwidth|Inter-AZ|Egress)\b/i },
   { service: "CloudFront", pattern: /\b(CloudFront|CDN)\b/i },
+  { service: "Elastic Load Balancing", pattern: /\b(ELB|Elastic Load Balanc|Load Balancer|ALB|NLB)\b/i },
+  { service: "CloudWatch", pattern: /\b(CloudWatch|Monitoring|Log Group|Logs|Metrics)\b/i },
+  { service: "DynamoDB", pattern: /\b(DynamoDB|NoSQL|Table Storage)\b/i },
+  { service: "ElastiCache", pattern: /\b(ElastiCache|Redis|Memcached)\b/i },
+  { service: "OpenSearch", pattern: /\b(OpenSearch|Elasticsearch)\b/i },
+  { service: "Elastic Container Service", pattern: /\b(ECS|Fargate|Container Service)\b/i },
+  { service: "Elastic Kubernetes Service", pattern: /\b(EKS|Kubernetes)\b/i },
+  { service: "Elastic Container Registry", pattern: /\b(ECR|Container Registry)\b/i },
+  { service: "Web Application Firewall", pattern: /\b(WAF|Firewall Manager)\b/i },
+  { service: "AWS Backup", pattern: /\b(AWS Backup|Backup)\b/i },
+  { service: "Secrets Manager", pattern: /\b(Secrets Manager|Secret Manager)\b/i },
+  { service: "Athena", pattern: /\b(Athena|Query Service)\b/i },
+  { service: "Glue", pattern: /\b(Glue|Data Catalog|ETL)\b/i },
+  { service: "Redshift", pattern: /\b(Redshift|Data Warehouse)\b/i },
+  { service: "SageMaker", pattern: /\b(SageMaker|Machine Learning)\b/i },
+  { service: "Bedrock", pattern: /\b(Bedrock|Foundation Model|Generative AI)\b/i },
   { service: "Route 53", pattern: /\b(Route 53|DNS)\b/i },
   { service: "KMS", pattern: /\b(KMS|Key Management|Key Vault)\b/i },
   { service: "CloudTrail", pattern: /\b(CloudTrail|Audit Logs|Activity Log)\b/i },

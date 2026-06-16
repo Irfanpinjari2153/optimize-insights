@@ -841,7 +841,7 @@ Produce the assessment now. Return a proper detailed analysis: 8 findings, exact
         return {
           ok: false,
           code: "credits_exhausted",
-          message: "AI credits exhausted. Add credits or configure a provider key.",
+          message: "The Ollama endpoint rejected the request for billing or quota reasons.",
         };
       }
       if (response.status === 401 || response.status === 403) {

@@ -53,7 +53,10 @@ const SERVICE_PATTERNS: Array<{ service: string; pattern: RegExp }> = [
   { service: "NAT Gateway", pattern: /\b(NAT Gateway|NAT)\b/i },
   { service: "Data Transfer", pattern: /\b(Data Transfer|Bandwidth|Inter-AZ|Egress)\b/i },
   { service: "CloudFront", pattern: /\b(CloudFront|CDN)\b/i },
-  { service: "Elastic Load Balancing", pattern: /\b(ELB|Elastic Load Balanc|Load Balancer|ALB|NLB)\b/i },
+  {
+    service: "Elastic Load Balancing",
+    pattern: /\b(ELB|Elastic Load Balanc|Load Balancer|ALB|NLB)\b/i,
+  },
   { service: "CloudWatch", pattern: /\b(CloudWatch|Monitoring|Log Group|Logs|Metrics)\b/i },
   { service: "DynamoDB", pattern: /\b(DynamoDB|NoSQL|Table Storage)\b/i },
   { service: "ElastiCache", pattern: /\b(ElastiCache|Redis|Memcached)\b/i },
@@ -148,7 +151,11 @@ function extractSectionTotal(content: string, services: LocalServiceSpend[]) {
   for (const rawLine of content.split("\n")) {
     const line = rawLine.trim();
     if (/\b(tax|credit|refund|payment|discount|subtotal)\b/i.test(line)) continue;
-    if (/\b(grand total|invoice total|amount due|total charges|total billed|bill total)\b/i.test(line)) {
+    if (
+      /\b(grand total|invoice total|amount due|total charges|total billed|bill total)\b/i.test(
+        line,
+      )
+    ) {
       preferredTotalCandidates.push(...getLineAmounts(line));
     } else if (/^\s*total\b|\btotal\s*$/i.test(line)) {
       totalCandidates.push(...getLineAmounts(line));
@@ -535,7 +542,10 @@ function parseJsonObjectFromText(value: unknown): AssessmentReport | undefined {
       ? value
       : "";
 
-  const cleaned = text.replace(/```(?:json)?/gi, "").replace(/```/g, "").trim();
+  const cleaned = text
+    .replace(/```(?:json)?/gi, "")
+    .replace(/```/g, "")
+    .trim();
   const start = cleaned.indexOf("{");
   const end = cleaned.lastIndexOf("}");
   if (start < 0 || end <= start) return undefined;

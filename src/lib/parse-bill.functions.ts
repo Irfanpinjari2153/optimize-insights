@@ -949,6 +949,16 @@ Produce the assessment now. Return a proper detailed analysis: 8 findings, exact
       };
     }
 
+    if (!reportMatchesBillEvidence(parsed, data.billText)) {
+      console.warn("AI response did not match bill totals; returning bill-derived fallback", {
+        provider,
+      });
+      return {
+        ok: true,
+        report: buildDeterministicReport(data.billText, data.accountName),
+      };
+    }
+
     // Best-effort: stamp ids and a timestamp
     const raw: AssessmentReport = {
       ...parsed,

@@ -7,6 +7,7 @@ import { normalizeReport } from "./normalize-assessment";
 type AiChatPayload = {
   choices?: Array<{
     message?: {
+      content?: unknown;
       tool_calls?: Array<{
         function?: { arguments?: unknown };
       }>;
@@ -15,7 +16,7 @@ type AiChatPayload = {
 };
 
 const MAX_AI_CONTEXT_CHARS = 14_000;
-const AI_PROVIDER_TIMEOUT_MS = 12_000;
+const AI_PROVIDER_TIMEOUT_MS = 18_000;
 
 type LocalServiceSpend = {
   service: string;
@@ -52,6 +53,25 @@ const SERVICE_PATTERNS: Array<{ service: string; pattern: RegExp }> = [
   { service: "NAT Gateway", pattern: /\b(NAT Gateway|NAT)\b/i },
   { service: "Data Transfer", pattern: /\b(Data Transfer|Bandwidth|Inter-AZ|Egress)\b/i },
   { service: "CloudFront", pattern: /\b(CloudFront|CDN)\b/i },
+  {
+    service: "Elastic Load Balancing",
+    pattern: /\b(ELB|Elastic Load Balanc|Load Balancer|ALB|NLB)\b/i,
+  },
+  { service: "CloudWatch", pattern: /\b(CloudWatch|Monitoring|Log Group|Logs|Metrics)\b/i },
+  { service: "DynamoDB", pattern: /\b(DynamoDB|NoSQL|Table Storage)\b/i },
+  { service: "ElastiCache", pattern: /\b(ElastiCache|Redis|Memcached)\b/i },
+  { service: "OpenSearch", pattern: /\b(OpenSearch|Elasticsearch)\b/i },
+  { service: "Elastic Container Service", pattern: /\b(ECS|Fargate|Container Service)\b/i },
+  { service: "Elastic Kubernetes Service", pattern: /\b(EKS|Kubernetes)\b/i },
+  { service: "Elastic Container Registry", pattern: /\b(ECR|Container Registry)\b/i },
+  { service: "Web Application Firewall", pattern: /\b(WAF|Firewall Manager)\b/i },
+  { service: "AWS Backup", pattern: /\b(AWS Backup|Backup)\b/i },
+  { service: "Secrets Manager", pattern: /\b(Secrets Manager|Secret Manager)\b/i },
+  { service: "Athena", pattern: /\b(Athena|Query Service)\b/i },
+  { service: "Glue", pattern: /\b(Glue|Data Catalog|ETL)\b/i },
+  { service: "Redshift", pattern: /\b(Redshift|Data Warehouse)\b/i },
+  { service: "SageMaker", pattern: /\b(SageMaker|Machine Learning)\b/i },
+  { service: "Bedrock", pattern: /\b(Bedrock|Foundation Model|Generative AI)\b/i },
   { service: "Route 53", pattern: /\b(Route 53|DNS)\b/i },
   { service: "KMS", pattern: /\b(KMS|Key Management|Key Vault)\b/i },
   { service: "CloudTrail", pattern: /\b(CloudTrail|Audit Logs|Activity Log)\b/i },
@@ -126,14 +146,21 @@ function extractServices(content: string) {
 }
 
 function extractSectionTotal(content: string, services: LocalServiceSpend[]) {
+  const preferredTotalCandidates: number[] = [];
   const totalCandidates: number[] = [];
   for (const rawLine of content.split("\n")) {
     const line = rawLine.trim();
-    if (/\b(grand total|invoice total|amount due|total charges|total)\b/i.test(line)) {
+    if (/\b(tax|credit|refund|payment|discount|subtotal)\b/i.test(line)) continue;
+    if (
+      /\b(grand total|invoice total|amount due|total charges|total billed|bill total)\b/i.test(line)
+    ) {
+      preferredTotalCandidates.push(...getLineAmounts(line));
+    } else if (/^\s*total\b|\btotal\s*$/i.test(line)) {
       totalCandidates.push(...getLineAmounts(line));
     }
   }
-  if (totalCandidates.length) return totalCandidates.at(-1) ?? 0;
+  if (preferredTotalCandidates.length) return Math.max(...preferredTotalCandidates);
+  if (totalCandidates.length) return Math.max(...totalCandidates);
   const serviceTotal = services.reduce((sum, service) => sum + service.amount, 0);
   if (serviceTotal > 0) return serviceTotal;
   const allAmounts = content.split("\n").flatMap(getLineAmounts);
@@ -198,6 +225,103 @@ function findService(services: LocalServiceSpend[], names: string[]) {
   );
 }
 
+function serviceOptimization(serviceName: string) {
+  const lower = serviceName.toLowerCase();
+  if (/compute|ec2|virtual machine|container|kubernetes|fargate/.test(lower)) {
+    return {
+      rate: 0.25,
+      title: `${serviceName} commitment and right-sizing opportunity`,
+      mechanism:
+        "right-size always-on capacity first, then cover the stable baseline with one-year commitments",
+      action:
+        "Export instance or workload utilization for this service, remove idle capacity, and size commitments only to the verified p70 baseline.",
+    };
+  }
+  if (/storage|s3|block store|backup|snapshot/.test(lower)) {
+    return {
+      rate: 0.3,
+      title: `${serviceName} lifecycle and retention cleanup opportunity`,
+      mechanism:
+        "move cold data to lower-cost tiers, delete stale snapshots, and reduce non-production retention after owner approval",
+      action:
+        "Pull age, last-access, and retention data for this storage line, then apply lifecycle rules to confirmed cold or stale data.",
+    };
+  }
+  if (/database|rds|sql|dynamodb|redshift|opensearch|elasticache/.test(lower)) {
+    return {
+      rate: 0.2,
+      title: `${serviceName} capacity and purchase-model review`,
+      mechanism:
+        "validate steady usage, remove over-provisioned capacity, and reserve only the confirmed baseline",
+      action:
+        "Compare database CPU, storage, IOPS, and connection metrics with current class or capacity settings, then right-size before reserving.",
+    };
+  }
+  if (/transfer|nat|bandwidth|cloudfront|load balanc|egress/.test(lower)) {
+    return {
+      rate: 0.35,
+      title: `${serviceName} network path optimization opportunity`,
+      mechanism:
+        "reduce avoidable NAT processing, inter-zone traffic, public egress, and uncached outbound transfer",
+      action:
+        "Use flow logs and cost usage detail to identify top traffic paths, then add private endpoints, caching, or same-zone routing where applicable.",
+    };
+  }
+  if (/cloudwatch|logs|monitoring|config|cloudtrail|security|guardduty|waf|kms/.test(lower)) {
+    return {
+      rate: 0.15,
+      title: `${serviceName} telemetry volume and retention review`,
+      mechanism:
+        "separate required security telemetry from noisy debug data and tune retention without weakening audit coverage",
+      action:
+        "Review ingestion volume, metric cardinality, and retention settings for this telemetry service, then reduce noisy non-audit data.",
+    };
+  }
+  return {
+    rate: 0.12,
+    title: `${serviceName} owner-level cost validation`,
+    mechanism:
+      "confirm the business owner, usage driver, and SKU-level detail before applying conservative optimization targets",
+    action:
+      "Open the service cost detail for this line item, assign an owner, and validate the specific usage driver causing the charge.",
+  };
+}
+
+function buildServiceCostFinding(
+  service: LocalServiceSpend,
+  index: number,
+  latestAmount: number,
+  averageSpend: number,
+): Finding {
+  const optimization = serviceOptimization(service.service);
+  const savings = Math.min(service.amount, Math.round(service.amount * optimization.rate));
+  const share = latestAmount > 0 ? Math.round((service.amount / latestAmount) * 1000) / 10 : 0;
+  const evidence = service.evidence[0]
+    ? `The bill line evidence includes "${service.evidence[0]}".`
+    : `The parsed latest-period service amount is ${formatUsd(service.amount)}.`;
+
+  return {
+    id: `f-${index + 1}`,
+    title: optimization.title,
+    category: "cost",
+    severity: share >= 35 || service.amount > averageSpend * 0.35 ? "high" : "medium",
+    monthlySavings: savings,
+    annualSavings: savings * 12,
+    confidence: service.evidence.length ? "medium" : "low",
+    evidenceType: service.evidence.length ? "direct" : "inference",
+    points: [
+      `${service.service} is ${formatUsd(service.amount)} in the latest visible period, representing ${share}% of that period's ${formatUsd(latestAmount)} total.`,
+      `${evidence} A conservative ${Math.round(optimization.rate * 100)}% improvement gives ${formatUsd(service.amount)} × ${Math.round(optimization.rate * 100)}% = about ${formatUsd(savings)} per month, capped below the service spend.`,
+      `The recommended mechanism is to ${optimization.mechanism}, because the bill proves spend but not utilization or owner intent.`,
+      `Annualized impact is ${formatUsd(savings)} × 12 = ${formatUsd(savings * 12)}, subject to validating SKU, region, and production-safety constraints before changes.`,
+    ],
+    assumptions: [
+      "The billing summary does not include utilization, SKU-level commitment coverage, or workload owner approval.",
+    ],
+    nextAction: optimization.action,
+  };
+}
+
 function buildDeterministicReport(billText: string, accountName?: string): AssessmentReport {
   const sections = parseLocalBillSections(billText).filter((section) => section.content.trim());
   const safeSections = sections.length
@@ -216,8 +340,6 @@ function buildDeterministicReport(billText: string, accountName?: string): Asses
     Math.max(1, safeSections.length);
 
   const compute = findService(aggregate, ["compute", "elastic compute", "virtual machines"]);
-  const storage = findService(aggregate, ["storage", "block store"]);
-  const network = findService(aggregate, ["nat", "transfer", "cloudfront"]);
   const securityVisible = aggregate.filter((service) =>
     ["guardduty", "security hub", "config", "cloudtrail", "kms"].some((name) =>
       service.service.toLowerCase().includes(name),
@@ -225,82 +347,23 @@ function buildDeterministicReport(billText: string, accountName?: string): Asses
   );
 
   const computeBase = compute?.amount || topService.amount || averageSpend;
-  const storageBase = storage?.amount || Math.max(topService.amount * 0.35, averageSpend * 0.15);
-  const networkBase = network?.amount || Math.max(averageSpend * 0.08, 0);
-  const computeSavings = Math.round(computeBase * 0.25);
-  const storageSavings = Math.round(storageBase * 0.3);
-  const networkSavings = Math.round(networkBase * 0.35);
 
   const trend = safeSections.length >= 2 ? latest.amount - safeSections[0].amount : 0;
   const trendDirection = trend > 0 ? "increased" : trend < 0 ? "decreased" : "remained flat";
   const visibleSecurityText = securityVisible.length
     ? securityVisible.map((service) => `${service.service} ${formatUsd(service.amount)}`).join(", ")
     : "no visible GuardDuty, Security Hub, Config, CloudTrail, or KMS line items";
+  const costFindingServices = (latestServices.length ? latestServices : aggregate)
+    .filter((service) => service.amount > 0)
+    .slice(0, 3);
+  const costFindings = (costFindingServices.length ? costFindingServices : [topService]).map(
+    (service, index) => buildServiceCostFinding(service, index, latest.amount, averageSpend),
+  );
 
   const findings: AssessmentReport["findings"] = [
+    ...costFindings,
     {
-      id: "f-1",
-      title: "Compute commitment coverage is likely underused",
-      category: "cost",
-      severity: computeBase > averageSpend * 0.35 ? "high" : "medium",
-      monthlySavings: computeSavings,
-      annualSavings: computeSavings * 12,
-      confidence: compute ? "medium" : "low",
-      evidenceType: compute ? "inference" : "assumption",
-      points: [
-        `The visible compute baseline is ${formatUsd(computeBase)}, using ${compute?.service || topService.service} as the spend evidence from the provided bill text.`,
-        `A conservative 25% commitment or rightsizing target gives ${formatUsd(computeBase)} × 25% = about ${formatUsd(computeSavings)} monthly savings.`,
-        "The bill proves recurring spend but does not include utilization, so CPU, memory, and reservation coverage must be validated before purchase.",
-        "Start with always-on production instances and stable database nodes, then apply Savings Plans or reservations only after seven-day utilization review.",
-      ],
-      assumptions: compute
-        ? ["Compute utilization and commitment coverage are not visible in billing text."]
-        : ["The largest visible service is being used as the compute optimization proxy."],
-      nextAction:
-        "Export compute utilization and commitment coverage for the latest month, then right-size idle resources before buying one-year commitments.",
-    },
-    {
-      id: "f-2",
-      title: "Storage lifecycle tiering has measurable savings potential",
-      category: "cost",
-      severity: storageBase > averageSpend * 0.2 ? "high" : "medium",
-      monthlySavings: storageSavings,
-      annualSavings: storageSavings * 12,
-      confidence: storage ? "medium" : "low",
-      evidenceType: storage ? "inference" : "assumption",
-      points: [
-        `The storage optimization baseline is ${formatUsd(storageBase)}, taken from ${storage?.service || "estimated storage share of the latest bill"}.`,
-        `A conservative 30% lifecycle target gives ${formatUsd(storageBase)} × 30% = about ${formatUsd(storageSavings)} monthly savings.`,
-        "The invoice text proves storage spend but not object age, access frequency, snapshot age, or backup retention policy.",
-        "Apply lifecycle rules only to cold objects, stale snapshots, and non-production backups after confirming restore requirements with application owners.",
-      ],
-      assumptions: [
-        "Detailed object access patterns and snapshot ages are not included in the billing summary.",
-      ],
-      nextAction:
-        "Pull S3/EBS/storage inventory with last-access and snapshot-age fields, then move confirmed cold data to lower-cost tiers.",
-    },
-    {
-      id: "f-3",
-      title: "Network transfer charges need architecture review",
-      category: "cost",
-      severity: networkBase > averageSpend * 0.12 ? "high" : "medium",
-      monthlySavings: networkSavings,
-      annualSavings: networkSavings * 12,
-      confidence: network ? "medium" : "low",
-      evidenceType: network ? "inference" : "assumption",
-      points: [
-        `The network baseline is ${formatUsd(networkBase)}, using ${network?.service || "a conservative share of monthly spend"} as the review target.`,
-        `Reducing avoidable routing, NAT, or egress by 35% gives ${formatUsd(networkBase)} × 35% = about ${formatUsd(networkSavings)} monthly savings.`,
-        "Billing confirms the spend pattern but not the traffic paths, so flow logs and endpoint usage must validate the actual source.",
-        "Highest-priority checks are NAT Gateway processing, inter-zone transfer, public egress, and missing private endpoints for managed services.",
-      ],
-      assumptions: ["Traffic path details are not available in the pasted billing text."],
-      nextAction:
-        "Review VPC flow logs, NAT metrics, and endpoint coverage for the latest period, then remove avoidable cross-zone and public egress paths.",
-    },
-    {
-      id: "f-4",
+      id: `f-${costFindings.length + 1}`,
       title: "Monthly spend trend needs active forecasting",
       category: "governance",
       severity: Math.abs(trend) > averageSpend * 0.15 ? "high" : "medium",
@@ -442,7 +505,7 @@ function compactBillTextForAi(text: string) {
     if (trimmed.startsWith("=====")) return true;
     if (/\$\s?\d|\bUSD\b|total|subtotal|tax|credit/i.test(trimmed)) return true;
     if (
-      /EC2|Elastic|Compute|S3|Storage|EBS|RDS|Database|Lambda|NAT|VPC|CloudFront|Route 53|KMS|GuardDuty|Security Hub|Config|CloudTrail|Support|Data Transfer|Bandwidth/i.test(
+      /EC2|Elastic|Compute|S3|Storage|EBS|RDS|Database|DynamoDB|Lambda|NAT|VPC|CloudFront|CloudWatch|Route 53|KMS|GuardDuty|Security Hub|Config|CloudTrail|Support|Data Transfer|Bandwidth|ECS|EKS|Fargate|Load Balanc|WAF|Backup|Secrets|Athena|Glue|Redshift|SageMaker|Bedrock/i.test(
         trimmed,
       )
     ) {
@@ -456,6 +519,59 @@ function compactBillTextForAi(text: string) {
   return source.length <= MAX_AI_CONTEXT_CHARS
     ? source
     : `${source.slice(0, MAX_AI_CONTEXT_CHARS)}\n…[additional bill lines omitted to keep analysis within request time]`;
+}
+
+function parseJsonObjectFromText(value: unknown): AssessmentReport | undefined {
+  if (!value) return undefined;
+  if (typeof value === "object" && !Array.isArray(value)) return value as AssessmentReport;
+
+  const text = Array.isArray(value)
+    ? value
+        .map((part) => {
+          if (typeof part === "string") return part;
+          if (part && typeof part === "object" && "text" in part) {
+            const textValue = (part as { text?: unknown }).text;
+            return typeof textValue === "string" ? textValue : "";
+          }
+          return "";
+        })
+        .join("\n")
+    : typeof value === "string"
+      ? value
+      : "";
+
+  const cleaned = text
+    .replace(/```(?:json)?/gi, "")
+    .replace(/```/g, "")
+    .trim();
+  const start = cleaned.indexOf("{");
+  const end = cleaned.lastIndexOf("}");
+  if (start < 0 || end <= start) return undefined;
+
+  try {
+    return JSON.parse(cleaned.slice(start, end + 1)) as AssessmentReport;
+  } catch {
+    return undefined;
+  }
+}
+
+function extractAssessmentFromPayload(payload: AiChatPayload) {
+  const message = payload?.choices?.[0]?.message;
+  const args = message?.tool_calls?.[0]?.function?.arguments;
+  return parseJsonObjectFromText(args) ?? parseJsonObjectFromText(message?.content);
+}
+
+function reportMatchesBillEvidence(report: AssessmentReport, billText: string) {
+  const sections = parseLocalBillSections(billText).filter((section) => section.amount > 0);
+  if (!sections.length) return true;
+
+  const expectedAmounts = sections.map((section) => Math.round(section.amount));
+  const reportedAmounts = (report.billingPeriods || []).map((period) => Math.round(period.amount));
+  const amountMatches = expectedAmounts.filter((amount) =>
+    reportedAmounts.some((reported) => Math.abs(reported - amount) <= Math.max(2, amount * 0.02)),
+  ).length;
+
+  return amountMatches >= Math.min(expectedAmounts.length, 2);
 }
 
 export type ParseBillSummaryResult =
@@ -797,29 +913,14 @@ Produce the assessment now. Return a proper detailed analysis: 8 findings, exact
         report: buildDeterministicReport(data.billText, data.accountName),
       };
     }
-    const toolCall = payload?.choices?.[0]?.message?.tool_calls?.[0];
-    const args = toolCall?.function?.arguments;
-    if (!args) {
+    const parsed = extractAssessmentFromPayload(payload);
+    if (!parsed) {
       console.warn(
-        "AI provider returned no tool call; returning deterministic assessment fallback",
+        "AI provider returned no parseable assessment; returning bill-derived fallback",
         {
           provider,
         },
       );
-      return {
-        ok: true,
-        report: buildDeterministicReport(data.billText, data.accountName),
-      };
-    }
-
-    let parsed: AssessmentReport;
-    try {
-      parsed = typeof args === "string" ? JSON.parse(args) : (args as AssessmentReport);
-    } catch (error) {
-      console.error("AI provider returned malformed tool arguments", {
-        provider,
-        error: error instanceof Error ? error.message : String(error),
-      });
       return {
         ok: true,
         report: buildDeterministicReport(data.billText, data.accountName),
@@ -841,6 +942,16 @@ Produce the assessment now. Return a proper detailed analysis: 8 findings, exact
       console.warn("AI response was shallow; returning deterministic assessment fallback", {
         provider,
         findings: findings.length,
+      });
+      return {
+        ok: true,
+        report: buildDeterministicReport(data.billText, data.accountName),
+      };
+    }
+
+    if (!reportMatchesBillEvidence(parsed, data.billText)) {
+      console.warn("AI response did not match bill totals; returning bill-derived fallback", {
+        provider,
       });
       return {
         ok: true,

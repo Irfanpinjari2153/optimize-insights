@@ -15,8 +15,15 @@ type AiChatPayload = {
   }>;
 };
 
+type OllamaChatPayload = {
+  message?: { content?: unknown };
+  response?: unknown;
+  error?: string;
+};
+
 const MAX_AI_CONTEXT_CHARS = 14_000;
 const AI_PROVIDER_TIMEOUT_MS = 18_000;
+const OLLAMA_PROVIDER_TIMEOUT_MS = 45_000;
 
 type LocalServiceSpend = {
   service: string;

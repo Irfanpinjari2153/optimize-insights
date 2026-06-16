@@ -253,8 +253,11 @@ function buildDeterministicReport(billText: string, accountName?: string): Asses
         "The bill proves recurring spend but does not include utilization, so CPU, memory, and reservation coverage must be validated before purchase.",
         "Start with always-on production instances and stable database nodes, then apply Savings Plans or reservations only after seven-day utilization review.",
       ],
-      assumptions: compute ? ["Compute utilization and commitment coverage are not visible in billing text."] : ["The largest visible service is being used as the compute optimization proxy."],
-      nextAction: "Export compute utilization and commitment coverage for the latest month, then right-size idle resources before buying one-year commitments.",
+      assumptions: compute
+        ? ["Compute utilization and commitment coverage are not visible in billing text."]
+        : ["The largest visible service is being used as the compute optimization proxy."],
+      nextAction:
+        "Export compute utilization and commitment coverage for the latest month, then right-size idle resources before buying one-year commitments.",
     },
     {
       id: "f-2",
@@ -271,8 +274,11 @@ function buildDeterministicReport(billText: string, accountName?: string): Asses
         "The invoice text proves storage spend but not object age, access frequency, snapshot age, or backup retention policy.",
         "Apply lifecycle rules only to cold objects, stale snapshots, and non-production backups after confirming restore requirements with application owners.",
       ],
-      assumptions: ["Detailed object access patterns and snapshot ages are not included in the billing summary."],
-      nextAction: "Pull S3/EBS/storage inventory with last-access and snapshot-age fields, then move confirmed cold data to lower-cost tiers.",
+      assumptions: [
+        "Detailed object access patterns and snapshot ages are not included in the billing summary.",
+      ],
+      nextAction:
+        "Pull S3/EBS/storage inventory with last-access and snapshot-age fields, then move confirmed cold data to lower-cost tiers.",
     },
     {
       id: "f-3",
@@ -290,7 +296,8 @@ function buildDeterministicReport(billText: string, accountName?: string): Asses
         "Highest-priority checks are NAT Gateway processing, inter-zone transfer, public egress, and missing private endpoints for managed services.",
       ],
       assumptions: ["Traffic path details are not available in the pasted billing text."],
-      nextAction: "Review VPC flow logs, NAT metrics, and endpoint coverage for the latest period, then remove avoidable cross-zone and public egress paths.",
+      nextAction:
+        "Review VPC flow logs, NAT metrics, and endpoint coverage for the latest period, then remove avoidable cross-zone and public egress paths.",
     },
     {
       id: "f-4",

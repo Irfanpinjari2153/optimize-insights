@@ -778,71 +778,33 @@ Produce the assessment now. Return a proper detailed analysis: 8 findings, exact
       },
     };
 
-    const nvidiaKey = process.env.NVIDIA_API_KEY;
-    const geminiKey = process.env.GEMINI_API_KEY;
-    const provider: "nvidia" | "gemini" | "lovable" = nvidiaKey
-      ? "nvidia"
-      : geminiKey
-        ? "gemini"
-        : "lovable";
-
-    const endpoint =
-      provider === "nvidia"
-        ? "https://integrate.api.nvidia.com/v1/chat/completions"
-        : provider === "gemini"
-          ? "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
-          : "https://ai.gateway.lovable.dev/v1/chat/completions";
-
-    const headers: Record<string, string> =
-      provider === "nvidia"
-        ? {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-            Authorization: `Bearer ${nvidiaKey}`,
-          }
-        : provider === "gemini"
-          ? { "Content-Type": "application/json", Authorization: `Bearer ${geminiKey}` }
-          : { "Content-Type": "application/json", "Lovable-API-Key": apiKey! };
-
-    const model =
-      provider === "nvidia"
-        ? "meta/llama-3.3-70b-instruct"
-        : provider === "gemini"
-          ? "gemini-2.0-flash"
-          : "google/gemini-3-flash-preview";
+    const endpoint = `${ollamaBaseUrl}/api/chat`;
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (ollamaApiKey) headers.Authorization = `Bearer ${ollamaApiKey}`;
 
     let response: Response;
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), AI_PROVIDER_TIMEOUT_MS);
+    const timeoutId = setTimeout(() => controller.abort(), OLLAMA_PROVIDER_TIMEOUT_MS);
     try {
       response = await fetch(endpoint, {
         method: "POST",
         headers,
         signal: controller.signal,
         body: JSON.stringify({
-          model,
+          model: ollamaModel,
+          stream: false,
+          format: "json",
           messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: userPrompt },
           ],
-          max_tokens: 4200,
-          tools: [
-            {
-              type: "function",
-              function: {
-                name: "emit_assessment",
-                description: "Emit the structured cloud assessment report.",
-                parameters: schema,
-              },
-            },
-          ],
-          tool_choice: { type: "function", function: { name: "emit_assessment" } },
+          options: { temperature: 0.1, num_ctx: 16_384 },
         }),
       });
     } catch (error) {
       if (error instanceof Error && error.name === "AbortError") {
-        console.warn("AI provider timed out; returning deterministic assessment fallback", {
-          provider,
+        console.warn("Ollama timed out; returning deterministic assessment fallback", {
+          model: ollamaModel,
           inputChars: data.billText.length,
           compactedChars: aiBillText.length,
         });
@@ -851,15 +813,16 @@ Produce the assessment now. Return a proper detailed analysis: 8 findings, exact
           report: buildDeterministicReport(data.billText, data.accountName),
         };
       }
-      console.error("AI provider network failure", {
-        provider,
+      console.error("Ollama network failure", {
+        model: ollamaModel,
         endpoint,
         error: error instanceof Error ? error.message : String(error),
       });
       return {
         ok: false,
         code: "request_failed",
-        message: "The AI provider could not be reached right now. Please try again in a moment.",
+        message:
+          "Ollama could not be reached from the backend. Use a public HTTPS Ollama endpoint, not localhost.",
       };
     } finally {
       clearTimeout(timeoutId);
@@ -867,14 +830,14 @@ Produce the assessment now. Return a proper detailed analysis: 8 findings, exact
 
     if (!response.ok) {
       const txt = await response.text();
-      console.error("AI provider error", {
-        provider,
+      console.error("Ollama provider error", {
+        model: ollamaModel,
         status: response.status,
         body: txt,
       });
       if (response.status === 524 || response.status === 504 || response.status === 408) {
-        console.warn("AI provider gateway timeout; returning deterministic assessment fallback", {
-          provider,
+        console.warn("Ollama gateway timeout; returning deterministic assessment fallback", {
+          model: ollamaModel,
           status: response.status,
         });
         return {
@@ -889,7 +852,7 @@ Produce the assessment now. Return a proper detailed analysis: 8 findings, exact
           code: "rate_limited",
           retryAfterSeconds:
             Number.isFinite(retryAfterHeader) && retryAfterHeader > 0 ? retryAfterHeader : 60,
-          message: `Rate limit hit on ${provider}. Wait about 60s and retry.`,
+          message: "Rate limit hit on Ollama. Wait about 60s and retry.",
         };
       }
       if (response.status === 402) {
@@ -903,22 +866,22 @@ Produce the assessment now. Return a proper detailed analysis: 8 findings, exact
         return {
           ok: false,
           code: "invalid_key",
-          message: `Invalid ${provider} API key. Check the key and try again.`,
+          message: "Invalid Ollama API key or endpoint access. Check the configured backend secret.",
         };
       }
       return {
         ok: false,
         code: "request_failed",
-        message: `AI request failed (${response.status}). Please try again in a moment.`,
+        message: `Ollama request failed (${response.status}). Please try again in a moment.`,
       };
     }
 
-    let payload: AiChatPayload;
+    let payload: OllamaChatPayload;
     try {
       payload = await response.json();
     } catch (error) {
-      console.error("AI provider returned invalid JSON", {
-        provider,
+      console.error("Ollama returned invalid JSON", {
+        model: ollamaModel,
         status: response.status,
         error: error instanceof Error ? error.message : String(error),
       });
@@ -927,12 +890,24 @@ Produce the assessment now. Return a proper detailed analysis: 8 findings, exact
         report: buildDeterministicReport(data.billText, data.accountName),
       };
     }
-    const parsed = extractAssessmentFromPayload(payload);
+    if (payload.error) {
+      console.error("Ollama returned an error payload", {
+        model: ollamaModel,
+        error: payload.error,
+      });
+      return {
+        ok: false,
+        code: "request_failed",
+        message: "Ollama returned an error while analyzing the bill. Check the model name and endpoint.",
+      };
+    }
+
+    const parsed = extractAssessmentFromOllamaPayload(payload);
     if (!parsed) {
       console.warn(
-        "AI provider returned no parseable assessment; returning bill-derived fallback",
+        "Ollama returned no parseable assessment; returning bill-derived fallback",
         {
-          provider,
+          model: ollamaModel,
         },
       );
       return {

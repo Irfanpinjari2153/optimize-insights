@@ -7,7 +7,8 @@ import { normalizeReport } from "./normalize-assessment";
 type OllamaChatPayload = {
   message?: { content?: unknown };
   response?: unknown;
-  error?: string;
+  error?: string | { message?: string };
+  choices?: Array<{ message?: { content?: unknown } }>;
 };
 
 const MAX_AI_CONTEXT_CHARS = 14_000;
@@ -576,7 +577,11 @@ function parseJsonObjectFromText(value: unknown): AssessmentReport | undefined {
 }
 
 function extractAssessmentFromOllamaPayload(payload: OllamaChatPayload) {
-  return parseJsonObjectFromText(payload?.message?.content) ?? parseJsonObjectFromText(payload?.response);
+  return (
+    parseJsonObjectFromText(payload?.choices?.[0]?.message?.content) ??
+    parseJsonObjectFromText(payload?.message?.content) ??
+    parseJsonObjectFromText(payload?.response)
+  );
 }
 
 function reportMatchesBillEvidence(report: AssessmentReport, billText: string) {
@@ -624,15 +629,19 @@ const ParseInput = z.object({
 export const parseBillSummary = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => ParseInput.parse(input))
   .handler(async ({ data }): Promise<ParseBillSummaryResult> => {
+    const lovableApiKey = process.env.LOVABLE_API_KEY;
     const ollamaBaseUrl = process.env.OLLAMA_BASE_URL?.replace(/\/+$/, "");
-    const ollamaModel = process.env.OLLAMA_MODEL || "llama3.2";
     const ollamaApiKey = process.env.OLLAMA_API_KEY;
-    if (!ollamaBaseUrl) {
+    const useLovableGateway = Boolean(lovableApiKey);
+    const ollamaModel = useLovableGateway
+      ? process.env.LOVABLE_AI_MODEL || "google/gemini-2.5-flash"
+      : process.env.OLLAMA_MODEL || "llama3.2";
+    if (!useLovableGateway && !ollamaBaseUrl) {
       return {
         ok: false,
         code: "not_configured",
         message:
-          "Ollama is not configured. Add OLLAMA_BASE_URL as a backend secret pointing to a reachable Ollama server.",
+          "AI provider is not configured. Enable Lovable AI (LOVABLE_API_KEY) or set OLLAMA_BASE_URL.",
       };
     }
 
@@ -785,10 +794,34 @@ Produce the assessment now. Return a proper detailed analysis: 8 findings, exact
       },
     };
 
-    const endpoints = buildOllamaChatEndpoints(ollamaBaseUrl);
-    let endpoint = endpoints[0] ?? ollamaBaseUrl;
+    const endpoints = useLovableGateway
+      ? ["https://ai.gateway.lovable.dev/v1/chat/completions"]
+      : buildOllamaChatEndpoints(ollamaBaseUrl ?? "");
+    let endpoint = endpoints[0] ?? ollamaBaseUrl ?? "";
     const headers: Record<string, string> = { "Content-Type": "application/json" };
-    if (ollamaApiKey) headers.Authorization = `Bearer ${ollamaApiKey}`;
+    if (useLovableGateway) headers.Authorization = `Bearer ${lovableApiKey}`;
+    else if (ollamaApiKey) headers.Authorization = `Bearer ${ollamaApiKey}`;
+
+    const requestBody = useLovableGateway
+      ? JSON.stringify({
+          model: ollamaModel,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt },
+          ],
+          response_format: { type: "json_object" },
+          temperature: 0.1,
+        })
+      : JSON.stringify({
+          model: ollamaModel,
+          stream: false,
+          format: schema,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt },
+          ],
+          options: { temperature: 0.1, num_ctx: 16_384 },
+        });
 
     let response: Response | undefined;
     const controller = new AbortController();
@@ -800,16 +833,7 @@ Produce the assessment now. Return a proper detailed analysis: 8 findings, exact
           method: "POST",
           headers,
           signal: controller.signal,
-          body: JSON.stringify({
-            model: ollamaModel,
-            stream: false,
-            format: schema,
-            messages: [
-              { role: "system", content: systemPrompt },
-              { role: "user", content: userPrompt },
-            ],
-            options: { temperature: 0.1, num_ctx: 16_384 },
-          }),
+          body: requestBody,
         });
         if (response.ok || response.status !== 404) break;
 

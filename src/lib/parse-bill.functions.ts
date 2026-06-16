@@ -561,6 +561,19 @@ function extractAssessmentFromPayload(payload: AiChatPayload) {
   return parseJsonObjectFromText(args) ?? parseJsonObjectFromText(message?.content);
 }
 
+function reportMatchesBillEvidence(report: AssessmentReport, billText: string) {
+  const sections = parseLocalBillSections(billText).filter((section) => section.amount > 0);
+  if (!sections.length) return true;
+
+  const expectedAmounts = sections.map((section) => Math.round(section.amount));
+  const reportedAmounts = (report.billingPeriods || []).map((period) => Math.round(period.amount));
+  const amountMatches = expectedAmounts.filter((amount) =>
+    reportedAmounts.some((reported) => Math.abs(reported - amount) <= Math.max(2, amount * 0.02)),
+  ).length;
+
+  return amountMatches >= Math.min(expectedAmounts.length, 2);
+}
+
 export type ParseBillSummaryResult =
   | {
       ok: true;

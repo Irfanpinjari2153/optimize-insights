@@ -919,7 +919,9 @@ Produce the assessment now. Return a proper detailed analysis: 8 findings, exact
         return {
           ok: false,
           code: "credits_exhausted",
-          message: "The Ollama endpoint rejected the request for billing or quota reasons.",
+          message: useLovableGateway
+            ? "Lovable AI credits are exhausted. Add credits in Settings → Workspace → Usage, then try again."
+            : "The Ollama endpoint rejected the request for billing or quota reasons.",
         };
       }
       if (response.status === 401 || response.status === 403) {

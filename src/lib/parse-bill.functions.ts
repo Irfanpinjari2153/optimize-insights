@@ -904,9 +904,12 @@ Produce the assessment now. Return a proper detailed analysis: 8 findings, exact
     }
     const parsed = extractAssessmentFromPayload(payload);
     if (!parsed) {
-      console.warn("AI provider returned no parseable assessment; returning bill-derived fallback", {
-        provider,
-      });
+      console.warn(
+        "AI provider returned no parseable assessment; returning bill-derived fallback",
+        {
+          provider,
+        },
+      );
       return {
         ok: true,
         report: buildDeterministicReport(data.billText, data.accountName),

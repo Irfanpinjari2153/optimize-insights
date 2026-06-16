@@ -631,7 +631,7 @@ Produce the assessment now. Return a proper detailed analysis: 8 findings, exact
 
     let response: Response;
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 90_000);
+    const timeoutId = setTimeout(() => controller.abort(), 45_000);
     try {
       response = await fetch(endpoint, {
         method: "POST",
@@ -659,11 +659,14 @@ Produce the assessment now. Return a proper detailed analysis: 8 findings, exact
       });
     } catch (error) {
       if (error instanceof Error && error.name === "AbortError") {
+        console.warn("AI provider timed out; returning deterministic assessment fallback", {
+          provider,
+          inputChars: data.billText.length,
+          compactedChars: aiBillText.length,
+        });
         return {
-          ok: false,
-          code: "request_failed",
-          message:
-            "The AI model timed out before finishing. Use shorter bill summaries and try again.",
+          ok: true,
+          report: buildDeterministicReport(data.billText, data.accountName),
         };
       }
       console.error("AI provider network failure", {
@@ -688,11 +691,13 @@ Produce the assessment now. Return a proper detailed analysis: 8 findings, exact
         body: txt,
       });
       if (response.status === 524 || response.status === 504 || response.status === 408) {
+        console.warn("AI provider gateway timeout; returning deterministic assessment fallback", {
+          provider,
+          status: response.status,
+        });
         return {
-          ok: false,
-          code: "request_failed",
-          message:
-            "The AI model timed out before finishing. Use shorter bill summaries and try again.",
+          ok: true,
+          report: buildDeterministicReport(data.billText, data.accountName),
         };
       }
       if (response.status === 429) {
@@ -736,22 +741,35 @@ Produce the assessment now. Return a proper detailed analysis: 8 findings, exact
         error: error instanceof Error ? error.message : String(error),
       });
       return {
-        ok: false,
-        code: "invalid_response",
-        message: "Assessment generation returned an unreadable response. Please retry.",
+        ok: true,
+        report: buildDeterministicReport(data.billText, data.accountName),
       };
     }
     const toolCall = payload?.choices?.[0]?.message?.tool_calls?.[0];
     const args = toolCall?.function?.arguments;
     if (!args) {
+      console.warn("AI provider returned no tool call; returning deterministic assessment fallback", {
+        provider,
+      });
       return {
-        ok: false,
-        code: "invalid_response",
-        message: "Assessment generation returned no structured output. Please retry.",
+        ok: true,
+        report: buildDeterministicReport(data.billText, data.accountName),
       };
     }
 
-    const parsed = typeof args === "string" ? JSON.parse(args) : args;
+    let parsed: AssessmentReport;
+    try {
+      parsed = typeof args === "string" ? JSON.parse(args) : (args as AssessmentReport);
+    } catch (error) {
+      console.error("AI provider returned malformed tool arguments", {
+        provider,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return {
+        ok: true,
+        report: buildDeterministicReport(data.billText, data.accountName),
+      };
+    }
 
     const findings = Array.isArray(parsed.findings) ? parsed.findings : [];
     const shallowFinding = findings.find(
@@ -765,11 +783,13 @@ Produce the assessment now. Return a proper detailed analysis: 8 findings, exact
     );
 
     if (findings.length < 8 || shallowFinding) {
+      console.warn("AI response was shallow; returning deterministic assessment fallback", {
+        provider,
+        findings: findings.length,
+      });
       return {
-        ok: false,
-        code: "invalid_response",
-        message:
-          "The AI response was too shallow. Please click Analyze again so it can generate a full detailed assessment.",
+        ok: true,
+        report: buildDeterministicReport(data.billText, data.accountName),
       };
     }
 

@@ -785,29 +785,40 @@ Produce the assessment now. Return a proper detailed analysis: 8 findings, exact
       },
     };
 
-    const endpoint = buildOllamaChatEndpoint(ollamaBaseUrl);
+    const endpoints = buildOllamaChatEndpoints(ollamaBaseUrl);
+    let endpoint = endpoints[0] ?? ollamaBaseUrl;
     const headers: Record<string, string> = { "Content-Type": "application/json" };
     if (ollamaApiKey) headers.Authorization = `Bearer ${ollamaApiKey}`;
 
-    let response: Response;
+    let response: Response | undefined;
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), OLLAMA_PROVIDER_TIMEOUT_MS);
     try {
-      response = await fetch(endpoint, {
-        method: "POST",
-        headers,
-        signal: controller.signal,
-        body: JSON.stringify({
+      for (const candidateEndpoint of endpoints) {
+        endpoint = candidateEndpoint;
+        response = await fetch(endpoint, {
+          method: "POST",
+          headers,
+          signal: controller.signal,
+          body: JSON.stringify({
+            model: ollamaModel,
+            stream: false,
+            format: schema,
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: userPrompt },
+            ],
+            options: { temperature: 0.1, num_ctx: 16_384 },
+          }),
+        });
+        if (response.ok || response.status !== 404) break;
+
+        console.warn("Ollama endpoint returned 404; trying fallback endpoint", {
           model: ollamaModel,
-          stream: false,
-          format: schema,
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userPrompt },
-          ],
-          options: { temperature: 0.1, num_ctx: 16_384 },
-        }),
-      });
+          endpoint,
+          body: (await response.clone().text()).slice(0, 240),
+        });
+      }
     } catch (error) {
       if (error instanceof Error && error.name === "AbortError") {
         console.warn("Ollama timed out; returning deterministic assessment fallback", {
@@ -833,6 +844,14 @@ Produce the assessment now. Return a proper detailed analysis: 8 findings, exact
       };
     } finally {
       clearTimeout(timeoutId);
+    }
+
+    if (!response) {
+      return {
+        ok: false,
+        code: "request_failed",
+        message: "Ollama could not be reached from the backend. Check the configured endpoint.",
+      };
     }
 
     if (!response.ok) {

@@ -4,17 +4,6 @@ import type { AssessmentReport, Finding } from "./assessment-types";
 import { MIN_SUMMARY_CHARS, SERVER_BILL_TEXT_LIMIT } from "./bill-input";
 import { normalizeReport } from "./normalize-assessment";
 
-type AiChatPayload = {
-  choices?: Array<{
-    message?: {
-      content?: unknown;
-      tool_calls?: Array<{
-        function?: { arguments?: unknown };
-      }>;
-    };
-  }>;
-};
-
 type OllamaChatPayload = {
   message?: { content?: unknown };
   response?: unknown;
@@ -22,7 +11,6 @@ type OllamaChatPayload = {
 };
 
 const MAX_AI_CONTEXT_CHARS = 14_000;
-const AI_PROVIDER_TIMEOUT_MS = 18_000;
 const OLLAMA_PROVIDER_TIMEOUT_MS = 45_000;
 
 type LocalServiceSpend = {
@@ -560,12 +548,6 @@ function parseJsonObjectFromText(value: unknown): AssessmentReport | undefined {
   } catch {
     return undefined;
   }
-}
-
-function extractAssessmentFromPayload(payload: AiChatPayload) {
-  const message = payload?.choices?.[0]?.message;
-  const args = message?.tool_calls?.[0]?.function?.arguments;
-  return parseJsonObjectFromText(args) ?? parseJsonObjectFromText(message?.content);
 }
 
 function extractAssessmentFromOllamaPayload(payload: OllamaChatPayload) {

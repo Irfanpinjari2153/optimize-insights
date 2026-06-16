@@ -13,11 +13,29 @@ type OllamaChatPayload = {
 const MAX_AI_CONTEXT_CHARS = 14_000;
 const OLLAMA_PROVIDER_TIMEOUT_MS = 45_000;
 
-function buildOllamaChatEndpoint(baseUrl: string) {
-  const normalized = baseUrl.replace(/\/+$/, "");
-  if (/\/api\/chat$/i.test(normalized)) return normalized;
-  if (/\/api$/i.test(normalized)) return `${normalized}/chat`;
-  return `${normalized}/api/chat`;
+function buildOllamaChatEndpoints(baseUrl: string) {
+  const normalized = baseUrl.trim().replace(/\/+$/, "");
+  const candidates: string[] = [];
+
+  try {
+    const url = new URL(normalized);
+    if (url.hostname === "ollama.com") candidates.push(`${url.origin}/api/chat`);
+  } catch {
+    // Fall through to string-based endpoint handling below.
+  }
+
+  if (/\/api\/chat$/i.test(normalized)) candidates.push(normalized);
+  else if (/\/api$/i.test(normalized)) candidates.push(`${normalized}/chat`);
+  else candidates.push(`${normalized}/api/chat`);
+
+  try {
+    const url = new URL(normalized);
+    candidates.push(`${url.origin}/api/chat`);
+  } catch {
+    // Ignore invalid URL fallbacks; the fetch path will surface the error.
+  }
+
+  return [...new Set(candidates)];
 }
 
 type LocalServiceSpend = {

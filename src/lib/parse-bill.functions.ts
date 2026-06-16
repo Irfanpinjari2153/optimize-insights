@@ -14,7 +14,8 @@ type AiChatPayload = {
   }>;
 };
 
-const MAX_AI_CONTEXT_CHARS = 24_000;
+const MAX_AI_CONTEXT_CHARS = 14_000;
+const AI_PROVIDER_TIMEOUT_MS = 12_000;
 
 type LocalServiceSpend = {
   service: string;
@@ -31,10 +32,22 @@ type LocalBillSection = {
 };
 
 const SERVICE_PATTERNS: Array<{ service: string; pattern: RegExp }> = [
-  { service: "Elastic Compute Cloud", pattern: /\b(EC2|Elastic Compute|Compute Cloud|Compute Engine|Virtual Machines)\b/i },
-  { service: "Simple Storage Service", pattern: /\b(S3|Simple Storage|Object Storage|Cloud Storage|Blob Storage)\b/i },
-  { service: "Elastic Block Store", pattern: /\b(EBS|Elastic Block|Persistent Disk|Managed Disks)\b/i },
-  { service: "Relational Database Service", pattern: /\b(RDS|Relational Database|Cloud SQL|Azure SQL|Database)\b/i },
+  {
+    service: "Elastic Compute Cloud",
+    pattern: /\b(EC2|Elastic Compute|Compute Cloud|Compute Engine|Virtual Machines)\b/i,
+  },
+  {
+    service: "Simple Storage Service",
+    pattern: /\b(S3|Simple Storage|Object Storage|Cloud Storage|Blob Storage)\b/i,
+  },
+  {
+    service: "Elastic Block Store",
+    pattern: /\b(EBS|Elastic Block|Persistent Disk|Managed Disks)\b/i,
+  },
+  {
+    service: "Relational Database Service",
+    pattern: /\b(RDS|Relational Database|Cloud SQL|Azure SQL|Database)\b/i,
+  },
   { service: "Lambda", pattern: /\b(Lambda|Functions|Cloud Functions)\b/i },
   { service: "NAT Gateway", pattern: /\b(NAT Gateway|NAT)\b/i },
   { service: "Data Transfer", pattern: /\b(Data Transfer|Bandwidth|Inter-AZ|Egress)\b/i },
@@ -60,7 +73,10 @@ function getLineAmounts(line: string) {
   const usdMatches = line.matchAll(/\bUSD\s*([0-9][\d,]*(?:\.\d{1,2})?)/gi);
   for (const match of usdMatches) amounts.push(Number(match[1].replace(/,/g, "")));
 
-  if (!amounts.length && /total|charges|EC2|S3|Storage|Compute|Database|Transfer|Support/i.test(line)) {
+  if (
+    !amounts.length &&
+    /total|charges|EC2|S3|Storage|Compute|Database|Transfer|Support/i.test(line)
+  ) {
     const trailing = line.match(/(?:^|\s)([0-9][\d,]*\.\d{2})\s*$/);
     if (trailing) amounts.push(Number(trailing[1].replace(/,/g, "")));
   }
@@ -161,9 +177,15 @@ function aggregateServices(sections: LocalBillSection[]) {
   const grouped = new Map<string, LocalServiceSpend>();
   for (const section of sections) {
     for (const service of section.services) {
-      const existing = grouped.get(service.service) ?? { service: service.service, amount: 0, evidence: [] };
+      const existing = grouped.get(service.service) ?? {
+        service: service.service,
+        amount: 0,
+        evidence: [],
+      };
       existing.amount += service.amount;
-      existing.evidence.push(...service.evidence.slice(0, Math.max(0, 3 - existing.evidence.length)));
+      existing.evidence.push(
+        ...service.evidence.slice(0, Math.max(0, 3 - existing.evidence.length)),
+      );
       grouped.set(service.service, existing);
     }
   }
@@ -171,18 +193,27 @@ function aggregateServices(sections: LocalBillSection[]) {
 }
 
 function findService(services: LocalServiceSpend[], names: string[]) {
-  return services.find((service) => names.some((name) => service.service.toLowerCase().includes(name)));
+  return services.find((service) =>
+    names.some((name) => service.service.toLowerCase().includes(name)),
+  );
 }
 
 function buildDeterministicReport(billText: string, accountName?: string): AssessmentReport {
   const sections = parseLocalBillSections(billText).filter((section) => section.content.trim());
-  const safeSections = sections.length ? sections : parseLocalBillSections("Total cloud spend $0.00");
+  const safeSections = sections.length
+    ? sections
+    : parseLocalBillSections("Total cloud spend $0.00");
   const latest = safeSections.at(-1) ?? safeSections[0];
   const aggregate = aggregateServices(safeSections);
   const latestServices = latest.services.length ? latest.services : aggregate;
-  const topService = latestServices[0] ?? { service: "Total cloud spend", amount: latest.amount, evidence: [] };
+  const topService = latestServices[0] ?? {
+    service: "Total cloud spend",
+    amount: latest.amount,
+    evidence: [],
+  };
   const averageSpend =
-    safeSections.reduce((sum, section) => sum + section.amount, 0) / Math.max(1, safeSections.length);
+    safeSections.reduce((sum, section) => sum + section.amount, 0) /
+    Math.max(1, safeSections.length);
 
   const compute = findService(aggregate, ["compute", "elastic compute", "virtual machines"]);
   const storage = findService(aggregate, ["storage", "block store"]);
@@ -222,8 +253,11 @@ function buildDeterministicReport(billText: string, accountName?: string): Asses
         "The bill proves recurring spend but does not include utilization, so CPU, memory, and reservation coverage must be validated before purchase.",
         "Start with always-on production instances and stable database nodes, then apply Savings Plans or reservations only after seven-day utilization review.",
       ],
-      assumptions: compute ? ["Compute utilization and commitment coverage are not visible in billing text."] : ["The largest visible service is being used as the compute optimization proxy."],
-      nextAction: "Export compute utilization and commitment coverage for the latest month, then right-size idle resources before buying one-year commitments.",
+      assumptions: compute
+        ? ["Compute utilization and commitment coverage are not visible in billing text."]
+        : ["The largest visible service is being used as the compute optimization proxy."],
+      nextAction:
+        "Export compute utilization and commitment coverage for the latest month, then right-size idle resources before buying one-year commitments.",
     },
     {
       id: "f-2",
@@ -240,8 +274,11 @@ function buildDeterministicReport(billText: string, accountName?: string): Asses
         "The invoice text proves storage spend but not object age, access frequency, snapshot age, or backup retention policy.",
         "Apply lifecycle rules only to cold objects, stale snapshots, and non-production backups after confirming restore requirements with application owners.",
       ],
-      assumptions: ["Detailed object access patterns and snapshot ages are not included in the billing summary."],
-      nextAction: "Pull S3/EBS/storage inventory with last-access and snapshot-age fields, then move confirmed cold data to lower-cost tiers.",
+      assumptions: [
+        "Detailed object access patterns and snapshot ages are not included in the billing summary.",
+      ],
+      nextAction:
+        "Pull S3/EBS/storage inventory with last-access and snapshot-age fields, then move confirmed cold data to lower-cost tiers.",
     },
     {
       id: "f-3",
@@ -259,7 +296,8 @@ function buildDeterministicReport(billText: string, accountName?: string): Asses
         "Highest-priority checks are NAT Gateway processing, inter-zone transfer, public egress, and missing private endpoints for managed services.",
       ],
       assumptions: ["Traffic path details are not available in the pasted billing text."],
-      nextAction: "Review VPC flow logs, NAT metrics, and endpoint coverage for the latest period, then remove avoidable cross-zone and public egress paths.",
+      nextAction:
+        "Review VPC flow logs, NAT metrics, and endpoint coverage for the latest period, then remove avoidable cross-zone and public egress paths.",
     },
     {
       id: "f-4",
@@ -275,7 +313,8 @@ function buildDeterministicReport(billText: string, accountName?: string): Asses
         "Create service-owner budgets using the top spend drivers so finance can distinguish planned growth from unmanaged cloud waste.",
       ],
       assumptions: [],
-      nextAction: "Create monthly budget alerts at service-owner level using latest-period service totals and the three-month average as the baseline.",
+      nextAction:
+        "Create monthly budget alerts at service-owner level using latest-period service totals and the three-month average as the baseline.",
     },
     {
       id: "f-5",
@@ -290,8 +329,13 @@ function buildDeterministicReport(billText: string, accountName?: string): Asses
         "The operational risk is that workloads may scale spend while threat detection, configuration drift checks, and audit retention remain incomplete.",
         "Validate coverage in the security consoles by checking enabled regions, protected accounts, finding volume, and log retention configuration.",
       ],
-      assumptions: securityVisible.length ? [] : ["Security services may be free-tier, centrally billed elsewhere, or omitted from the summary."],
-      nextAction: "Verify GuardDuty, Security Hub, Config, CloudTrail, and KMS coverage across every production account and active region this sprint.",
+      assumptions: securityVisible.length
+        ? []
+        : [
+            "Security services may be free-tier, centrally billed elsewhere, or omitted from the summary.",
+          ],
+      nextAction:
+        "Verify GuardDuty, Security Hub, Config, CloudTrail, and KMS coverage across every production account and active region this sprint.",
     },
     {
       id: "f-6",
@@ -307,7 +351,8 @@ function buildDeterministicReport(billText: string, accountName?: string): Asses
         "Validation should compare storage, database, and compute inventories against encryption defaults, key ownership, and centralized audit logging.",
       ],
       assumptions: ["Control-plane configuration is not included in the billing summary."],
-      nextAction: "Run a configuration inventory for encryption, public access, and audit logging on the highest-spend storage, database, and compute services.",
+      nextAction:
+        "Run a configuration inventory for encryption, public access, and audit logging on the highest-spend storage, database, and compute services.",
     },
     {
       id: "f-7",
@@ -324,8 +369,11 @@ function buildDeterministicReport(billText: string, accountName?: string): Asses
         "Billing does not reveal architecture, so migration candidates must be selected from workloads with stable demand and low platform coupling.",
         "Prioritize non-critical stateless services first, then expand to databases or stateful systems after compatibility and performance tests pass.",
       ],
-      assumptions: ["Instance families, runtime architectures, and workload compatibility are not visible in billing text."],
-      nextAction: "Identify the top three steady compute workloads and test right-sizing, autoscaling, or modern instance families in a non-production environment.",
+      assumptions: [
+        "Instance families, runtime architectures, and workload compatibility are not visible in billing text.",
+      ],
+      nextAction:
+        "Identify the top three steady compute workloads and test right-sizing, autoscaling, or modern instance families in a non-production environment.",
     },
     {
       id: "f-8",
@@ -341,7 +389,8 @@ function buildDeterministicReport(billText: string, accountName?: string): Asses
         "Ownership controls should map every large service line to application, environment, team, and lifecycle so waste is routed to the right owner.",
       ],
       assumptions: ["Tagging and cost-category coverage are not included in the pasted summary."],
-      nextAction: "Enforce required cost tags for application, owner, environment, and data classification on the services driving the latest bill.",
+      nextAction:
+        "Enforce required cost tags for application, owner, environment, and data classification on the services driving the latest bill.",
     },
   ];
 
@@ -352,7 +401,9 @@ function buildDeterministicReport(billText: string, accountName?: string): Asses
     invoiceFile: `period-${index + 1}`,
   }));
 
-  const serviceBreakdownSource = latestServices.length ? latestServices : [{ service: "Total cloud spend", amount: latest.amount, evidence: [] }];
+  const serviceBreakdownSource = latestServices.length
+    ? latestServices
+    : [{ service: "Total cloud spend", amount: latest.amount, evidence: [] }];
   const monthlySavings = findings.reduce((sum, finding) => sum + (finding.monthlySavings || 0), 0);
 
   return normalizeReport({
@@ -364,7 +415,8 @@ function buildDeterministicReport(billText: string, accountName?: string): Asses
       averageSpend: Math.round(averageSpend),
       monthlySavings,
       annualSavings: monthlySavings * 12,
-      savingsPercent: averageSpend > 0 ? Math.round((monthlySavings / averageSpend) * 1000) / 10 : 0,
+      savingsPercent:
+        averageSpend > 0 ? Math.round((monthlySavings / averageSpend) * 1000) / 10 : 0,
       criticalCount: findings.filter((finding) => finding.severity === "critical").length,
     },
     executiveBullets: [
@@ -631,7 +683,7 @@ Produce the assessment now. Return a proper detailed analysis: 8 findings, exact
 
     let response: Response;
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 45_000);
+    const timeoutId = setTimeout(() => controller.abort(), AI_PROVIDER_TIMEOUT_MS);
     try {
       response = await fetch(endpoint, {
         method: "POST",
@@ -643,7 +695,7 @@ Produce the assessment now. Return a proper detailed analysis: 8 findings, exact
             { role: "system", content: systemPrompt },
             { role: "user", content: userPrompt },
           ],
-          max_tokens: 6000,
+          max_tokens: 4200,
           tools: [
             {
               type: "function",
@@ -748,9 +800,12 @@ Produce the assessment now. Return a proper detailed analysis: 8 findings, exact
     const toolCall = payload?.choices?.[0]?.message?.tool_calls?.[0];
     const args = toolCall?.function?.arguments;
     if (!args) {
-      console.warn("AI provider returned no tool call; returning deterministic assessment fallback", {
-        provider,
-      });
+      console.warn(
+        "AI provider returned no tool call; returning deterministic assessment fallback",
+        {
+          provider,
+        },
+      );
       return {
         ok: true,
         report: buildDeterministicReport(data.billText, data.accountName),
